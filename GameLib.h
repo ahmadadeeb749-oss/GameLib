@@ -1136,8 +1136,10 @@ void GameLib::FillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint3
 
     if (y3 == y1) {
         int minX = x1, maxX = x1;
-        if (x2 < minX) minX = x2; if (x2 > maxX) maxX = x2;
-        if (x3 < minX) minX = x3; if (x3 > maxX) maxX = x3;
+        if (x2 < minX) minX = x2;
+        if (x2 > maxX) maxX = x2;
+        if (x3 < minX) minX = x3;
+        if (x3 > maxX) maxX = x3;
         _DrawHLine(minX, maxX, y1, color);
         return;
     }
