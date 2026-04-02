@@ -1,11 +1,12 @@
 //=====================================================================
 //
-// GameLib.h - 面向初学者的单头文件游戏库
+// GameLib.h - A single-header game library for beginners
 //
-// 基于 Win32 GDI，无需 SDL 或其他第三方库。
-// 适用于 Dev C++ (GCC 4.9.2+)，可开发空战、俄罗斯方块、走迷宫等游戏。
+// Based on Win32 GDI, no SDL or other third-party libraries needed.
+// Works with Dev C++ (GCC 4.9.2+), can make shooting games, Tetris, 
+// maze games, etc.
 //
-// 使用方法（单文件项目，最常见情况）：
+// How to use (single file project, most common):
 //
 //     #include "GameLib.h"
 //
@@ -31,14 +32,14 @@
 //         return 0;
 //     }
 //
-// 多文件项目：在主 .cpp 文件中 #include 之前加一行
+// Multi-file project: add this line before #include in the main .cpp file
 //     #define GAMELIB_IMPLEMENTATION
 //     #include "GameLib.h"
-// 其他 .cpp 文件中加一行
+// In other .cpp files, add this line
 //     #define GAMELIB_NO_IMPLEMENTATION
 //     #include "GameLib.h"
 //
-// 编译命令（MinGW / Dev C++）：
+// Compile command (MinGW / Dev C++):
 //     g++ -o game.exe main.cpp -mwindows
 //
 // Last Modified: 2026/04/02
@@ -47,7 +48,7 @@
 #ifndef GAMELIB_H
 #define GAMELIB_H
 
-// 默认行为：include 即启用实现（方便单文件项目）
+// Default behavior: include enables implementation (good for single file projects)
 #ifndef GAMELIB_NO_IMPLEMENTATION
 #ifndef GAMELIB_IMPLEMENTATION
 #define GAMELIB_IMPLEMENTATION
@@ -55,7 +56,7 @@
 #endif
 
 //---------------------------------------------------------------------
-// 系统头文件
+// System header files
 //---------------------------------------------------------------------
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -76,7 +77,8 @@
 
 
 //---------------------------------------------------------------------
-// 链接库：仅需 -mwindows，gdi32 和 winmm 通过 LoadLibrary 动态加载
+// Link library: only needs -mwindows, gdi32 and winmm are loaded 
+// via LoadLibrary
 //---------------------------------------------------------------------
 #ifdef _MSC_VER
 #pragma comment(lib, "user32.lib")
@@ -84,7 +86,7 @@
 
 
 //---------------------------------------------------------------------
-// mmsystem 类型和常量声明（不再 #include <mmsystem.h>）
+// mmsystem types and constants (no need to #include <mmsystem.h>)
 //---------------------------------------------------------------------
 #ifndef SND_ASYNC
 #define SND_ASYNC       0x0001
@@ -98,7 +100,7 @@ typedef DWORD MCIERROR;
 
 
 //---------------------------------------------------------------------
-// 动态加载的函数指针类型
+// Dynamically loaded function pointer types
 //---------------------------------------------------------------------
 
 // gdi32.dll
@@ -129,11 +131,11 @@ typedef HRESULT (WINAPI *PFN_CreateStreamOnHGlobal)(HGLOBAL, BOOL, void**);
 
 
 //=====================================================================
-// 第一部分：常量定义
+// Part 1: Constants
 //=====================================================================
 
 //---------------------------------------------------------------------
-// 颜色常量 (ARGB 格式: 0xAARRGGBB)
+// Color constants (ARGB format: 0xAARRGGBB)
 //---------------------------------------------------------------------
 #define COLOR_BLACK       0xFF000000
 #define COLOR_WHITE       0xFFFFFFFF
@@ -157,18 +159,18 @@ typedef HRESULT (WINAPI *PFN_CreateStreamOnHGlobal)(HGLOBAL, BOOL, void**);
 #define COLOR_GOLD        0xFFFFD700
 #define COLOR_TRANSPARENT 0x00000000
 
-// 颜色构造宏
+// Color helper macros
 #define COLOR_RGB(r, g, b)     ((uint32_t)(0xFF000000 | ((r) << 16) | ((g) << 8) | (b)))
 #define COLOR_ARGB(a, r, g, b) ((uint32_t)(((a) << 24) | ((r) << 16) | ((g) << 8) | (b)))
 
-// 颜色分量提取
+// Color component extraction
 #define COLOR_GET_A(c)    (((c) >> 24) & 0xFF)
 #define COLOR_GET_R(c)    (((c) >> 16) & 0xFF)
 #define COLOR_GET_G(c)    (((c) >> 8) & 0xFF)
 #define COLOR_GET_B(c)    ((c) & 0xFF)
 
 //---------------------------------------------------------------------
-// 键盘常量（使用 Windows Virtual Key Code）
+// Keyboard constants (using Windows Virtual Key Code)
 //---------------------------------------------------------------------
 #define KEY_LEFT      VK_LEFT
 #define KEY_RIGHT     VK_RIGHT
@@ -234,32 +236,32 @@ typedef HRESULT (WINAPI *PFN_CreateStreamOnHGlobal)(HGLOBAL, BOOL, void**);
 #define KEY_F12       VK_F12
 
 //---------------------------------------------------------------------
-// 鼠标按键常量
+// Mouse button constants
 //---------------------------------------------------------------------
 #define MOUSE_LEFT    0
 #define MOUSE_RIGHT   1
 #define MOUSE_MIDDLE  2
 
 //---------------------------------------------------------------------
-// 精灵绘制标志
+// Sprite drawing flags
 //---------------------------------------------------------------------
-#define SPRITE_FLIP_H     1    // 水平翻转
-#define SPRITE_FLIP_V     2    // 垂直翻转
-#define SPRITE_COLORKEY   4    // 启用透明色
-#define SPRITE_ALPHA      8    // 启用 Alpha 混合
+#define SPRITE_FLIP_H     1    // flip horizontal
+#define SPRITE_FLIP_V     2    // flip vertical
+#define SPRITE_COLORKEY   4    // enable transparent color
+#define SPRITE_ALPHA      8    // enable alpha blending
 
-// 默认 Color Key 颜色：品红 (255, 0, 255)，常见 2D 资源透明色
+// Default Color Key: magenta (255, 0, 255), common transparent color in 2D games
 #ifndef COLORKEY_DEFAULT
 #define COLORKEY_DEFAULT  0xFFFF00FF
 #endif
 
 
 //=====================================================================
-// 第二部分：类声明
+// Part 2: Class Declaration
 //=====================================================================
 
 //---------------------------------------------------------------------
-// GameLib 主类
+// GameLib Main Class
 //---------------------------------------------------------------------
 class GameLib
 {
@@ -267,7 +269,7 @@ public:
     GameLib();
     ~GameLib();
 
-    // -------- 窗口与主循环 --------
+    // -------- Window and Main Loop --------
     int Open(int width, int height, const char *title, bool center = false);
     bool IsClosed() const;
     void Update();
@@ -280,12 +282,12 @@ public:
     void SetTitle(const char *title);
     void ShowFps(bool show);
 
-    // -------- 帧缓冲 --------
+    // -------- Frame Buffer --------
     void Clear(uint32_t color = COLOR_BLACK);
     void SetPixel(int x, int y, uint32_t color);
     uint32_t GetPixel(int x, int y) const;
 
-    // -------- 图形绘制 --------
+    // -------- Drawing --------
     void DrawLine(int x1, int y1, int x2, int y2, uint32_t color);
     void DrawRect(int x, int y, int w, int h, uint32_t color);
     void FillRect(int x, int y, int w, int h, uint32_t color);
@@ -294,13 +296,13 @@ public:
     void DrawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint32_t color);
     void FillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint32_t color);
 
-    // -------- 文字渲染（内嵌 8x8 点阵字体） --------
+    // -------- Text Rendering (built-in 8x8 font) --------
     void DrawText(int x, int y, const char *text, uint32_t color);
     void DrawNumber(int x, int y, int number, uint32_t color);
     void DrawTextScale(int x, int y, const char *text, uint32_t color, int scale);
     void DrawPrintf(int x, int y, uint32_t color, const char *fmt, ...);
 
-    // -------- 精灵系统（整数 ID 管理） --------
+    // -------- Sprite System (managed by integer ID) --------
     int CreateSprite(int width, int height);
     int LoadSpriteBMP(const char *filename);
     int LoadSprite(const char *filename);
@@ -313,21 +315,21 @@ public:
     int GetSpriteWidth(int id) const;
     int GetSpriteHeight(int id) const;
 
-    // -------- 输入系统 --------
+    // -------- Input --------
     bool IsKeyDown(int key) const;
     bool IsKeyPressed(int key) const;
     int GetMouseX() const;
     int GetMouseY() const;
     bool IsMouseDown(int button) const;
 
-    // -------- 声音 --------
+    // -------- Sound --------
     void PlayBeep(int frequency, int duration);
     void PlayWAV(const char *filename, bool loop = false);
     void StopWAV();
     void PlayMusic(const char *filename, bool loop = true);
     void StopMusic();
 
-    // -------- 工具函数 --------
+    // -------- Helper Functions --------
     static int Random(int minVal, int maxVal);
     static bool RectOverlap(int x1, int y1, int w1, int h1,
                             int x2, int y2, int w2, int h2);
@@ -336,11 +338,11 @@ public:
     static bool PointInRect(int px, int py, int x, int y, int w, int h);
     static float Distance(int x1, int y1, int x2, int y2);
 
-    // -------- 网格辅助 --------
+    // -------- Grid Helpers --------
     void DrawGrid(int x, int y, int rows, int cols, int cellSize, uint32_t color);
     void FillCell(int gridX, int gridY, int row, int col, int cellSize, uint32_t color);
 
-    // -------- Tilemap 系统 --------
+    // -------- Tilemap System --------
     int CreateTilemap(int cols, int rows, int tileSize, int tilesetId);
     void FreeTilemap(int mapId);
     void SetTile(int mapId, int col, int row, int tileId);
@@ -348,29 +350,29 @@ public:
     void DrawTilemap(int mapId, int x, int y, int flags = 0);
 
 private:
-    // 禁止拷贝
+    // disable copy
     GameLib(const GameLib &);
     GameLib &operator=(const GameLib &);
 
-    // 内部窗口管理
+    // internal window management
     static LRESULT CALLBACK _WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
     static int _InitWindowClass();
     void _DispatchMessages();
     void _InitDIBInfo(void *ptr, int width, int height);
     void _UpdateTitleFps();
 
-    // 内部像素绘制（无边界检查，用于已裁剪后的快速绘制）
+    // internal pixel drawing (no bounds check, for fast drawing after clipping)
     void _SetPixelFast(int x, int y, uint32_t color);
     void _DrawHLine(int x1, int x2, int y, uint32_t color);
 
-    // 内部精灵管理
+    // internal sprite management
     int _AllocSpriteSlot();
 
-    // 内部 Tilemap 管理
+    // internal tilemap management
     int _AllocTilemapSlot();
 
 private:
-    // 窗口状态
+    // window state
     HWND _hwnd;
     bool _closing;
     bool _active;
@@ -379,20 +381,20 @@ private:
     int _width;
     int _height;
 
-    // 帧缓冲
+    // frame buffer
     uint32_t *_framebuffer;
 
-    // DIB 信息（用于 SetDIBitsToDevice）
+    // DIB info (for SetDIBitsToDevice)
     unsigned char _bmi_data[sizeof(BITMAPINFO) + 16 * sizeof(RGBQUAD)];
 
-    // 输入状态
+    // input state
     int _keys[512];
     int _keys_prev[512];
     int _mouseX;
     int _mouseY;
     int _mouseButtons[3];
 
-    // 时间
+    // timing
     DWORD _timeStart;
     DWORD _timePrev;
     float _deltaTime;
@@ -400,34 +402,34 @@ private:
     float _fpsAccum;
     DWORD _fpsTime;
 
-    // 精灵存储
+    // sprite storage
     struct GameSprite { int width, height; uint32_t *pixels; bool used; };
     std::vector<GameSprite> _sprites;
 
-    // Tilemap 存储
+    // tilemap storage
     struct GameTilemap {
-        int cols, rows;     // 地图网格大小
-        int tileSize;       // 瓦片边长（像素）
-        int tilesetId;      // tileset 精灵 ID
-        int tilesetCols;    // tileset 每行有多少个瓦片
-        int *tiles;         // cols * rows 的瓦片 ID 数组（-1 = 空）
-        bool used;          // 槽位是否被使用
+        int cols, rows;     // map grid size
+        int tileSize;       // tile size in pixels
+        int tilesetId;      // tileset sprite ID
+        int tilesetCols;    // tiles per row in tileset
+        int *tiles;         // tile ID array (cols * rows, -1 = empty)
+        bool used;          // is this slot in use
     };
     std::vector<GameTilemap> _tilemaps;
 
-    // 音乐状态（MCI）
+    // music state (MCI)
     bool _musicPlaying;
 
-    // 随机数初始化标记
+    // random seed initialized flag
     static bool _srandDone;
 };
 
 
 //=====================================================================
-// 第三部分：8x8 点阵字体数据（ASCII 32-126）
+// Part 3: 8x8 Font Data (ASCII 32-126)
 //=====================================================================
 
-// 经典 8x8 点阵字体，每个字符 8 字节，每字节一行，MSB 在左
+// Classic 8x8 bitmap font, 8 bytes per char, one byte per row, MSB on left
 static const unsigned char _gamelib_font8x8[95][8] = {
     { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 }, // 32 ' '
     { 0x18,0x3C,0x3C,0x18,0x18,0x00,0x18,0x00 }, // 33 '!'
@@ -528,12 +530,12 @@ static const unsigned char _gamelib_font8x8[95][8] = {
 
 
 //=====================================================================
-// 第四部分：实现
+// Part 4: Implementation
 //=====================================================================
 #ifdef GAMELIB_IMPLEMENTATION
 
 //---------------------------------------------------------------------
-// 动态加载的函数指针（全局，进程生命周期内有效）
+// Dynamically loaded function pointers (global, valid during process lifetime)
 //---------------------------------------------------------------------
 static PFN_SetDIBitsToDevice   _gl_SetDIBitsToDevice  = NULL;
 static PFN_GetStockObject      _gl_GetStockObject     = NULL;
@@ -573,7 +575,7 @@ static int _gamelib_load_apis()
 
 
 //---------------------------------------------------------------------
-// GDI+ 动态加载（用于 PNG/JPG 图片加载）
+// GDI+ dynamic loading (for PNG/JPG image loading)
 //---------------------------------------------------------------------
 static PFN_GdiplusStartup             _gl_GdiplusStartup = NULL;
 static PFN_GdipCreateBitmapFromStream _gl_GdipCreateBitmapFromStream = NULL;
@@ -587,7 +589,7 @@ static PFN_CreateStreamOnHGlobal      _gl_CreateStreamOnHGlobal = NULL;
 static int _gamelib_gdiplus_ready = 0;
 static ULONG_PTR _gamelib_gdip_token = 0;
 
-// 初始化 GDI+：加载 gdiplus.dll / ole32.dll 并调用 GdiplusStartup
+// Initialize GDI+: load gdiplus.dll / ole32.dll and call GdiplusStartup
 static int _gamelib_gdiplus_init()
 {
     if (_gamelib_gdiplus_ready) return 0;
@@ -633,11 +635,11 @@ static int _gamelib_gdiplus_init()
     return 0;
 }
 
-// 通过 COM vtable 调用 IUnknown::Release（无需 #include <ObjBase.h>）
+// Call IUnknown::Release through COM vtable (no need to #include <ObjBase.h>)
 static void _gamelib_com_release(void *obj)
 {
     if (!obj) return;
-    // COM 对象布局：第一个指针指向 vtable
+    // COM object layout: first pointer points to vtable
     // IUnknown vtable: [0]=QueryInterface, [1]=AddRef, [2]=Release
     typedef unsigned long (WINAPI *PFN_Release)(void*);
     void **vtbl = *(void***)obj;
@@ -648,13 +650,13 @@ static void _gamelib_com_release(void *obj)
 // GDI+ PixelFormat32bppARGB
 #define _GL_PIXFMT_32bppARGB 2498570
 
-// 通过 GDI+ 从内存加载图片（PNG/JPG/BMP/GIF/TIFF 等），返回 ARGB 像素
+// Load image from memory via GDI+ (PNG/JPG/BMP/GIF/TIFF etc.), returns ARGB pixels
 static uint32_t* _gamelib_gdiplus_load(
     const void *data, long size, int *out_w, int *out_h)
 {
     if (_gamelib_gdiplus_init() != 0) return NULL;
 
-    // 分配全局内存并复制文件数据
+    // Allocate global memory and copy file data
     HGLOBAL hg = GlobalAlloc(GMEM_MOVEABLE, size);
     if (!hg) return NULL;
 
@@ -663,14 +665,14 @@ static uint32_t* _gamelib_gdiplus_load(
     memcpy(pg, data, size);
     GlobalUnlock(hg);
 
-    // 创建 IStream
+    // Create IStream
     void *pStream = NULL;
     if (_gl_CreateStreamOnHGlobal(hg, FALSE, &pStream) != 0 || !pStream) {
         GlobalFree(hg);
         return NULL;
     }
 
-    // 从 IStream 创建 GDI+ Bitmap
+    // Create GDI+ Bitmap from IStream
     void *gpBitmap = NULL;
     if (_gl_GdipCreateBitmapFromStream(pStream, &gpBitmap) != 0 || !gpBitmap) {
         _gamelib_com_release(pStream);
@@ -678,7 +680,7 @@ static uint32_t* _gamelib_gdiplus_load(
         return NULL;
     }
 
-    // 获取图片尺寸
+    // Get image size
     UINT width = 0, height = 0;
     _gl_GdipGetImageWidth(gpBitmap, &width);
     _gl_GdipGetImageHeight(gpBitmap, &height);
@@ -687,7 +689,7 @@ static uint32_t* _gamelib_gdiplus_load(
 
     if (width == 0 || height == 0) goto cleanup;
 
-    // LockBits 结构体（匹配 GDI+ BitmapData 布局）
+    // LockBits struct (matches GDI+ BitmapData layout)
     {
         struct {
             UINT    bWidth;
@@ -701,7 +703,7 @@ static uint32_t* _gamelib_gdiplus_load(
 
         int lockRect[4] = { 0, 0, (int)width, (int)height };
 
-        // ImageLockModeRead = 1，请求 32bppARGB 格式
+        // ImageLockModeRead = 1, request 32bppARGB format
         if (_gl_GdipBitmapLockBits(gpBitmap, lockRect, 1,
                 _GL_PIXFMT_32bppARGB, &bd) != 0) {
             goto cleanup;
@@ -714,7 +716,7 @@ static uint32_t* _gamelib_gdiplus_load(
                 const char *src = (const char*)bd.bScan0 + y * bd.bStride;
                 memcpy(dst, src, width * sizeof(uint32_t));
             }
-            // 24 位图片经 GDI+ 转换后 alpha 可能为 0，检测并修正为 255
+            // 24-bit images may have alpha=0 after GDI+ conversion, detect and fix to 255
             {
                 UINT total = width * height;
                 bool allZeroAlpha = true;
@@ -746,12 +748,12 @@ cleanup:
 }
 
 
-// 静态成员初始化
+// Static member initialization
 bool GameLib::_srandDone = false;
 
 
 //---------------------------------------------------------------------
-// 构造函数
+// Constructor
 //---------------------------------------------------------------------
 GameLib::GameLib()
 {
@@ -783,17 +785,17 @@ GameLib::GameLib()
 
 
 //---------------------------------------------------------------------
-// 析构函数
+// Destructor
 //---------------------------------------------------------------------
 GameLib::~GameLib()
 {
-    // 停止音乐
+    // Stop music
     if (_musicPlaying) {
         _gl_mciSendStringA("stop gamelib_music", NULL, 0, NULL);
         _gl_mciSendStringA("close gamelib_music", NULL, 0, NULL);
         _musicPlaying = false;
     }
-    // 释放所有精灵
+    // Free all sprites
     for (size_t i = 0; i < _sprites.size(); i++) {
         if (_sprites[i].used && _sprites[i].pixels) {
             free(_sprites[i].pixels);
@@ -801,7 +803,7 @@ GameLib::~GameLib()
             _sprites[i].used = false;
         }
     }
-    // 释放所有 Tilemap
+    // Free all Tilemaps
     for (size_t i = 0; i < _tilemaps.size(); i++) {
         if (_tilemaps[i].used && _tilemaps[i].tiles) {
             free(_tilemaps[i].tiles);
@@ -809,12 +811,12 @@ GameLib::~GameLib()
             _tilemaps[i].used = false;
         }
     }
-    // 释放帧缓冲
+    // Free frame buffer
     if (_framebuffer) {
         free(_framebuffer);
         _framebuffer = NULL;
     }
-    // 销毁窗口
+    // Destroy window
     if (_hwnd) {
         DestroyWindow(_hwnd);
         _hwnd = NULL;
@@ -824,7 +826,7 @@ GameLib::~GameLib()
 
 
 //---------------------------------------------------------------------
-// 注册窗口类（静态，只执行一次）
+// Register window class (static, runs only once)
 //---------------------------------------------------------------------
 int GameLib::_InitWindowClass()
 {
@@ -849,7 +851,7 @@ int GameLib::_InitWindowClass()
 
 
 //---------------------------------------------------------------------
-// 窗口过程（静态回调）
+// Window procedure (static callback)
 //---------------------------------------------------------------------
 #define GAMELIB_REPEATED_KEYMASK (1 << 30)
 
@@ -940,7 +942,7 @@ LRESULT CALLBACK GameLib::_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
 
 
 //---------------------------------------------------------------------
-// 初始化 DIB 信息（32 位 ARGB）
+// Initialize DIB info (32-bit ARGB)
 //---------------------------------------------------------------------
 void GameLib::_InitDIBInfo(void *ptr, int width, int height)
 {
@@ -948,7 +950,7 @@ void GameLib::_InitDIBInfo(void *ptr, int width, int height)
     memset(info, 0, sizeof(BITMAPINFOHEADER));
     info->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     info->bmiHeader.biWidth = width;
-    info->bmiHeader.biHeight = -height;  // 负值表示 top-down
+    info->bmiHeader.biHeight = -height;  // negative value means top-down
     info->bmiHeader.biPlanes = 1;
     info->bmiHeader.biBitCount = 32;
     info->bmiHeader.biCompression = BI_RGB;
@@ -957,7 +959,7 @@ void GameLib::_InitDIBInfo(void *ptr, int width, int height)
 
 
 //---------------------------------------------------------------------
-// 派发 Windows 消息
+// Dispatch Windows messages
 //---------------------------------------------------------------------
 void GameLib::_DispatchMessages()
 {
@@ -974,14 +976,14 @@ void GameLib::_DispatchMessages()
 
 
 //---------------------------------------------------------------------
-// Open: 创建窗口并初始化
+// Open: create window and initialize
 //---------------------------------------------------------------------
 int GameLib::Open(int width, int height, const char *title, bool center)
 {
-    // 动态加载 gdi32/winmm API
+    // Dynamically load gdi32/winmm API
     if (_gamelib_load_apis() != 0) return -5;
 
-    // 先销毁已有资源
+    // Destroy existing resources first
     if (_framebuffer) { free(_framebuffer); _framebuffer = NULL; }
     if (_hwnd) { DestroyWindow(_hwnd); _hwnd = NULL; }
 
@@ -993,22 +995,22 @@ int GameLib::Open(int width, int height, const char *title, bool center)
     _closing = false;
     _active = true;
 
-    // 分配帧缓冲
+    // Allocate frame buffer
     _framebuffer = (uint32_t*)malloc(width * height * sizeof(uint32_t));
     if (!_framebuffer) return -2;
     memset(_framebuffer, 0, width * height * sizeof(uint32_t));
 
-    // 初始化 DIB 信息
+    // Initialize DIB info
     _InitDIBInfo(_bmi_data, width, height);
 
-    // 计算窗口大小（使客户区等于 width x height）
+    // Calculate window size (make client area equal to width x height)
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     RECT rc = { 0, 0, width, height };
     AdjustWindowRect(&rc, style, FALSE);
     int ww = rc.right - rc.left;
     int wh = rc.bottom - rc.top;
 
-    // 窗口位置：默认让系统决定，center 时居中
+    // Window position: let system decide by default, center if requested
     int posX = CW_USEDEFAULT;
     int posY = CW_USEDEFAULT;
     if (center) {
@@ -1018,7 +1020,7 @@ int GameLib::Open(int width, int height, const char *title, bool center)
         posY = (screenH - wh) / 2;
     }
 
-    // UTF-8 转宽字符
+    // Convert UTF-8 to wide string
     int tlen = (int)strlen(title);
     wchar_t *wtitle = (wchar_t*)malloc((tlen * 2 + 10) * sizeof(wchar_t));
     if (!wtitle) { free(_framebuffer); _framebuffer = NULL; return -3; }
@@ -1036,8 +1038,8 @@ int GameLib::Open(int width, int height, const char *title, bool center)
         return -4;
     }
 
-    // 创建后二次校正：确保客户区严格等于 width x height
-    // AdjustWindowRect 在某些 DPI 环境下可能不精确
+    // Second adjustment after creation: ensure client area is exactly width x height
+    // AdjustWindowRect may not be accurate in some DPI settings
     {
         RECT clientRC;
         ::GetClientRect(_hwnd, &clientRC);
@@ -1065,7 +1067,7 @@ int GameLib::Open(int width, int height, const char *title, bool center)
     ShowWindow(_hwnd, SW_SHOW);
     UpdateWindow(_hwnd);
 
-    // 初始化时间
+    // Initialize time
     _gl_timeBeginPeriod(1);
     _timeStart = _gl_timeGetTime();
     _timePrev = _timeStart;
@@ -1074,7 +1076,7 @@ int GameLib::Open(int width, int height, const char *title, bool center)
     _fps = 0.0f;
     _deltaTime = 0.0f;
 
-    // 初始化输入
+    // Initialize input
     memset(_keys, 0, sizeof(_keys));
     memset(_keys_prev, 0, sizeof(_keys_prev));
     memset(_mouseButtons, 0, sizeof(_mouseButtons));
@@ -1093,13 +1095,13 @@ bool GameLib::IsClosed() const
 
 
 //---------------------------------------------------------------------
-// Update: 将帧缓冲刷新到窗口，然后处理消息、更新输入
+// Update: flush frame buffer to window, then process messages and update input
 //---------------------------------------------------------------------
 void GameLib::Update()
 {
     if (!_hwnd || !_framebuffer) return;
 
-    // 将帧缓冲区绘制到窗口
+    // Draw frame buffer to window
     HDC hdc = ::GetDC(_hwnd);
     if (hdc) {
         _gl_SetDIBitsToDevice(hdc, 0, 0, _width, _height,
@@ -1110,20 +1112,20 @@ void GameLib::Update()
         ::ReleaseDC(_hwnd, hdc);
     }
 
-    // 保存上一帧的按键状态（用于边沿检测）
+    // Save previous frame key state (for edge detection)
     memcpy(_keys_prev, _keys, sizeof(_keys));
 
-    // 派发消息
+    // Dispatch messages
     _DispatchMessages();
 
-    // 更新时间
+    // Update time
     DWORD now = _gl_timeGetTime();
     int32_t delta = (int32_t)(now - _timePrev);
     if (delta < 0) delta = 0;
     _deltaTime = delta / 1000.0f;
     _timePrev = now;
 
-    // 更新 FPS
+    // Update FPS
     _fpsAccum += 1.0f;
     int32_t fpsDelta = (int32_t)(now - _fpsTime);
     if (fpsDelta >= 1000) {
@@ -1136,7 +1138,7 @@ void GameLib::Update()
 
 
 //---------------------------------------------------------------------
-// WaitFrame: 帧率控制
+// WaitFrame: frame rate control
 //---------------------------------------------------------------------
 void GameLib::WaitFrame(int fps)
 {
@@ -1183,20 +1185,20 @@ void GameLib::SetTitle(const char *title)
 
 
 //---------------------------------------------------------------------
-// ShowFps: 是否在标题栏显示 FPS
+// ShowFps: whether to show FPS in title bar
 //---------------------------------------------------------------------
 void GameLib::ShowFps(bool show)
 {
     _showFps = show;
     if (!show && _hwnd) {
-        // 关闭时恢复原始标题
+        // Restore original title when turned off
         SetTitle(_title.c_str());
     }
 }
 
 
 //---------------------------------------------------------------------
-// _UpdateTitleFps: 更新标题栏 FPS 显示（内部方法）
+// _UpdateTitleFps: update title bar FPS display (internal method)
 //---------------------------------------------------------------------
 void GameLib::_UpdateTitleFps()
 {
@@ -1214,7 +1216,7 @@ void GameLib::_UpdateTitleFps()
 
 
 //=====================================================================
-// 帧缓冲操作
+// Frame Buffer Operations
 //=====================================================================
 
 void GameLib::Clear(uint32_t color)
@@ -1246,11 +1248,11 @@ void GameLib::_SetPixelFast(int x, int y, uint32_t color)
 
 
 //=====================================================================
-// 图形绘制
+// Drawing Functions
 //=====================================================================
 
 //---------------------------------------------------------------------
-// DrawLine: Bresenham 算法
+// DrawLine: Bresenham's algorithm
 //---------------------------------------------------------------------
 void GameLib::DrawLine(int x1, int y1, int x2, int y2, uint32_t color)
 {
@@ -1271,7 +1273,7 @@ void GameLib::DrawLine(int x1, int y1, int x2, int y2, uint32_t color)
 
 
 //---------------------------------------------------------------------
-// 水平线（内部用，带裁剪）
+// Horizontal line (internal use, with clipping)
 //---------------------------------------------------------------------
 void GameLib::_DrawHLine(int x1, int x2, int y, uint32_t color)
 {
@@ -1313,7 +1315,7 @@ void GameLib::FillRect(int x, int y, int w, int h, uint32_t color)
 
 
 //---------------------------------------------------------------------
-// DrawCircle: 中点圆算法
+// DrawCircle: midpoint circle algorithm
 //---------------------------------------------------------------------
 void GameLib::DrawCircle(int cx, int cy, int r, uint32_t color)
 {
@@ -1374,11 +1376,11 @@ void GameLib::DrawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint3
 
 
 //---------------------------------------------------------------------
-// FillTriangle: 扫描线填充
+// FillTriangle: scanline fill
 //---------------------------------------------------------------------
 void GameLib::FillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint32_t color)
 {
-    // 按 y 排序: y1 <= y2 <= y3
+    // Sort by y: y1 <= y2 <= y3
     if (y1 > y2) { int t; t=x1; x1=x2; x2=t; t=y1; y1=y2; y2=t; }
     if (y1 > y3) { int t; t=x1; x1=x3; x3=t; t=y1; y1=y3; y3=t; }
     if (y2 > y3) { int t; t=x2; x2=x3; x3=t; t=y2; y2=y3; y3=t; }
@@ -1395,7 +1397,7 @@ void GameLib::FillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint3
 
     for (int y = y1; y <= y3; y++) {
         int xa, xb;
-        // y3 != y1 在此处一定成立（退化情况已在上方 return）
+        // y3 != y1 is always true here (degenerate case returned above)
         xa = x1 + (x3 - x1) * (y - y1) / (y3 - y1);
         if (y < y2) {
             if (y2 != y1) {
@@ -1416,7 +1418,7 @@ void GameLib::FillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint3
 
 
 //=====================================================================
-// 文字渲染
+// Text Rendering
 //=====================================================================
 
 void GameLib::DrawText(int x, int y, const char *text, uint32_t color)
@@ -1427,7 +1429,7 @@ void GameLib::DrawText(int x, int y, const char *text, uint32_t color)
         unsigned char ch = (unsigned char)*p;
         if (ch == '\n') {
             x = ox;
-            y += 10;  // 8 像素高 + 2 像素行间距
+            y += 10;  // 8 pixels high + 2 pixels line spacing
             continue;
         }
         if (ch < 32 || ch > 126) continue;
@@ -1489,7 +1491,7 @@ void GameLib::DrawPrintf(int x, int y, uint32_t color, const char *fmt, ...)
 
 
 //=====================================================================
-// 精灵系统
+// Sprite System
 //=====================================================================
 
 int GameLib::_AllocSpriteSlot()
@@ -1569,7 +1571,7 @@ int GameLib::LoadSpriteBMP(const char *filename)
 
 int GameLib::LoadSprite(const char *filename)
 {
-    // 读取文件到内存
+    // Read file into memory
     FILE *fp = fopen(filename, "rb");
     if (!fp) return -1;
 
@@ -1589,13 +1591,13 @@ int GameLib::LoadSprite(const char *filename)
     }
     fclose(fp);
 
-    // 通过 GDI+ 解码（支持 PNG/JPG/BMP/GIF/TIFF）
+    // Decode via GDI+ (supports PNG/JPG/BMP/GIF/TIFF)
     int imgW = 0, imgH = 0;
     uint32_t *pixels = _gamelib_gdiplus_load(fileData, fileSize, &imgW, &imgH);
 
     if (!pixels || imgW <= 0 || imgH <= 0) {
         if (pixels) free(pixels);
-        // GDI+ 失败，若为 BMP 文件则回退到 LoadSpriteBMP
+        // GDI+ failed, if BMP file then fallback to LoadSpriteBMP
         bool isBMP = (fileSize >= 2 && fileData[0] == 'B' && fileData[1] == 'M');
         free(fileData);
         return isBMP ? LoadSpriteBMP(filename) : -1;
@@ -1603,7 +1605,7 @@ int GameLib::LoadSprite(const char *filename)
 
     free(fileData);
 
-    // 分配精灵槽位，直接使用 GDI+ 返回的像素数据
+    // Allocate sprite slot, use pixel data returned by GDI+ directly
     int id = _AllocSpriteSlot();
     _sprites[id].width = imgW;
     _sprites[id].height = imgH;
@@ -1653,7 +1655,7 @@ void GameLib::DrawSpriteEx(int id, int x, int y, int flags)
     bool flipH = (flags & SPRITE_FLIP_H) != 0;
     bool flipV = (flags & SPRITE_FLIP_V) != 0;
 
-    // 预裁剪，避免逐像素边界检查
+    // Pre-clip to avoid per-pixel boundary check
     int sx0 = 0, sx1 = spr.width;
     int sy0 = 0, sy1 = spr.height;
     if (x < 0) sx0 = -x;
@@ -1663,7 +1665,7 @@ void GameLib::DrawSpriteEx(int id, int x, int y, int flags)
     if (sx0 >= sx1 || sy0 >= sy1) return;
 
     if (flags & SPRITE_ALPHA) {
-        // ---- Alpha 混合路径 ----
+        // ---- Alpha blending path ----
         bool colorKey = (flags & SPRITE_COLORKEY) != 0;
         for (int sy = sy0; sy < sy1; sy++) {
             int srcY = flipV ? (spr.height - 1 - sy) : sy;
@@ -1688,7 +1690,7 @@ void GameLib::DrawSpriteEx(int id, int x, int y, int flags)
             }
         }
     } else if (flags & SPRITE_COLORKEY) {
-        // ---- ColorKey 透明色路径 ----
+        // ---- ColorKey transparent path ----
         for (int sy = sy0; sy < sy1; sy++) {
             int srcY = flipV ? (spr.height - 1 - sy) : sy;
             const uint32_t *srcRow = spr.pixels + srcY * spr.width;
@@ -1701,7 +1703,7 @@ void GameLib::DrawSpriteEx(int id, int x, int y, int flags)
             }
         }
     } else {
-        // ---- 不透明路径（跳过 alpha=0） ----
+        // ---- Opaque path (skip alpha=0) ----
         for (int sy = sy0; sy < sy1; sy++) {
             int srcY = flipV ? (spr.height - 1 - sy) : sy;
             const uint32_t *srcRow = spr.pixels + srcY * spr.width;
@@ -1773,7 +1775,7 @@ int GameLib::GetSpriteHeight(int id) const
 
 
 //=====================================================================
-// 输入系统
+// Input System
 //=====================================================================
 
 bool GameLib::IsKeyDown(int key) const
@@ -1798,7 +1800,7 @@ bool GameLib::IsMouseDown(int button) const
 
 
 //=====================================================================
-// 声音
+// Sound
 //=====================================================================
 
 void GameLib::PlayBeep(int frequency, int duration)
@@ -1820,23 +1822,23 @@ void GameLib::StopWAV()
 
 void GameLib::PlayMusic(const char *filename, bool loop)
 {
-    // 先停止之前的音乐
+    // Stop previous music first
     if (_musicPlaying) {
         _gl_mciSendStringA("stop gamelib_music", NULL, 0, NULL);
         _gl_mciSendStringA("close gamelib_music", NULL, 0, NULL);
         _musicPlaying = false;
     }
-    // 打开音频文件（支持 mp3/mid/wav 等 MCI 支持的格式）
+    // Open audio file (supports mp3/mid/wav etc., formats supported by MCI)
     char cmd[1024];
     snprintf(cmd, sizeof(cmd), "open \"%s\" type mpegvideo alias gamelib_music", filename);
     if (_gl_mciSendStringA(cmd, NULL, 0, NULL) != 0) {
-        // mpegvideo 失败时尝试自动检测类型
+        // If mpegvideo fails, try auto-detect type
         snprintf(cmd, sizeof(cmd), "open \"%s\" alias gamelib_music", filename);
         if (_gl_mciSendStringA(cmd, NULL, 0, NULL) != 0) {
             return;
         }
     }
-    // 播放
+    // Play
     if (loop) {
         _gl_mciSendStringA("play gamelib_music repeat", NULL, 0, NULL);
     } else {
@@ -1856,7 +1858,7 @@ void GameLib::StopMusic()
 
 
 //=====================================================================
-// 工具函数
+// Helper Functions
 //=====================================================================
 
 int GameLib::Random(int minVal, int maxVal)
@@ -1896,7 +1898,7 @@ float GameLib::Distance(int x1, int y1, int x2, int y2)
 
 
 //=====================================================================
-// 网格辅助
+// Grid Helpers
 //=====================================================================
 
 void GameLib::DrawGrid(int x, int y, int rows, int cols, int cellSize, uint32_t color)
@@ -1917,7 +1919,7 @@ void GameLib::FillCell(int gridX, int gridY, int row, int col, int cellSize, uin
 
 
 //=====================================================================
-// Tilemap 系统
+// Tilemap System
 //=====================================================================
 
 int GameLib::_AllocTilemapSlot()
@@ -2003,7 +2005,7 @@ void GameLib::DrawTilemap(int mapId, int x, int y, int flags)
     int tsCols = tm.tilesetCols;
     if (tsCols <= 0) return;
 
-    // 计算屏幕可见的瓦片范围，避免遍历整张地图
+    // Calculate visible tile range on screen, avoid traversing the whole map
     int col0 = (-x) / ts;
     int row0 = (-y) / ts;
     int col1 = (-x + _width - 1) / ts + 1;
@@ -2021,17 +2023,17 @@ void GameLib::DrawTilemap(int mapId, int x, int y, int flags)
             int tid = tm.tiles[r * tm.cols + c];
             if (tid < 0) continue;
 
-            // tileset 中该瓦片的像素起点
+            // Pixel start position of this tile in tileset
             int srcCol = tid % tsCols;
             int srcRow = tid / tsCols;
             int srcX0 = srcCol * ts;
             int srcY0 = srcRow * ts;
 
-            // 屏幕目标位置
+            // Screen destination position
             int dstX0 = x + c * ts;
             int dstY0 = y + r * ts;
 
-            // 瓦片内裁剪
+            // Clip within tile
             int ix0 = 0, iy0 = 0, ix1 = ts, iy1 = ts;
             if (dstX0 < 0) ix0 = -dstX0;
             if (dstY0 < 0) iy0 = -dstY0;
@@ -2039,7 +2041,7 @@ void GameLib::DrawTilemap(int mapId, int x, int y, int flags)
             if (dstY0 + iy1 > _height) iy1 = _height - dstY0;
 
             if (useAlpha) {
-                // ---- Alpha 混合路径 ----
+                // ---- Alpha blending path ----
                 for (int iy = iy0; iy < iy1; iy++) {
                     int sy = srcY0 + iy;
                     if (sy < 0 || sy >= tset.height) continue;
@@ -2066,7 +2068,7 @@ void GameLib::DrawTilemap(int mapId, int x, int y, int flags)
                     }
                 }
             } else if (useColorKey) {
-                // ---- ColorKey 透明色路径 ----
+                // ---- ColorKey transparent path ----
                 for (int iy = iy0; iy < iy1; iy++) {
                     int sy = srcY0 + iy;
                     if (sy < 0 || sy >= tset.height) continue;
@@ -2082,7 +2084,7 @@ void GameLib::DrawTilemap(int mapId, int x, int y, int flags)
                     }
                 }
             } else {
-                // ---- 不透明路径（跳过 alpha=0） ----
+                // ---- Opaque path (skip alpha=0) ----
                 for (int iy = iy0; iy < iy1; iy++) {
                     int sy = srcY0 + iy;
                     if (sy < 0 || sy >= tset.height) continue;
