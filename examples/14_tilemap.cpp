@@ -3,11 +3,14 @@
 // Two-layer scrolling demo:
 //   - Background layer: far view (sky, clouds, hills), half speed for parallax effect
 //   - Foreground layer: ground, platforms, bricks, stairs, full speed
-//   - A simple character (block person) can move left/right, camera follows
-// All tile graphics are made by code, no external files needed.
+//   - Character sprite loaded from assets/, camera follows
+//   - Decorative trees loaded from assets/
+// Foreground tileset and sprites loaded from assets/ folder (PNG with 0xFF00FF color key).
+// Background tileset is still made by code (no matching asset).
 //
 // Controls: <- -> move character, ESC to quit
-// Learn: CreateTilemap, SetTile, DrawTilemap, parallax scrolling
+// Learn: CreateTilemap, SetTile, DrawTilemap, LoadSprite, DrawSpriteEx,
+//        SPRITE_COLORKEY, SPRITE_FLIP_H, parallax scrolling
 //
 // Compile: g++ -o 14_tilemap.exe 14_tilemap.cpp -mwindows
 
@@ -15,6 +18,10 @@
 
 // Tile size
 static const int TS = 16;
+
+// Character sprite dimensions
+static const int CHAR_W = 32;
+static const int CHAR_FOOT = 44;  // y of boot soles in sprite
 
 // Foreground tile IDs
 enum { FG_GRASS = 0, FG_DIRT = 1, FG_BRICK = 2, FG_STONE = 3 };
@@ -28,57 +35,6 @@ static void spriteFill(GameLib &g, int id, int x0, int y0, int w, int h, uint32_
     for (int y = y0; y < y0 + h; y++)
         for (int x = x0; x < x0 + w; x++)
             g.SetSpritePixel(id, x, y, c);
-}
-
-// Make foreground tileset (4 tiles in a row = 64x16 sprite)
-static int makeFgTileset(GameLib &game)
-{
-    int id = game.CreateSprite(4 * TS, TS);
-    int ox;
-
-    // Grass: green top + brown bottom
-    ox = FG_GRASS * TS;
-    spriteFill(game, id, ox, 0, TS, 5, COLOR_RGB(46, 160, 67));
-    spriteFill(game, id, ox, 5, TS, 11, COLOR_RGB(139, 90, 43));
-    for (int x = 1; x < TS; x += 3)
-        game.SetSpritePixel(id, ox + x, 5, COLOR_RGB(60, 190, 60));
-
-    // Dirt: brown + texture dots
-    ox = FG_DIRT * TS;
-    spriteFill(game, id, ox, 0, TS, TS, COLOR_RGB(139, 90, 43));
-    for (int y = 2; y < TS; y += 5)
-        for (int x = 2; x < TS; x += 4)
-            game.SetSpritePixel(id, ox + x, y, COLOR_RGB(115, 72, 33));
-
-    // Brick: red-brown + gray lines (staggered)
-    ox = FG_BRICK * TS;
-    spriteFill(game, id, ox, 0, TS, TS, COLOR_RGB(180, 80, 60));
-    for (int x = 0; x < TS; x++) {
-        game.SetSpritePixel(id, ox + x, 7, COLOR_RGB(140, 130, 120));
-        game.SetSpritePixel(id, ox + x, 15, COLOR_RGB(140, 130, 120));
-    }
-    for (int y = 0; y < 7; y++) {
-        game.SetSpritePixel(id, ox, y, COLOR_RGB(140, 130, 120));
-        game.SetSpritePixel(id, ox + 8, y, COLOR_RGB(140, 130, 120));
-    }
-    for (int y = 8; y < 15; y++) {
-        game.SetSpritePixel(id, ox + 4, y, COLOR_RGB(140, 130, 120));
-        game.SetSpritePixel(id, ox + 12, y, COLOR_RGB(140, 130, 120));
-    }
-
-    // Stone: gray + border + light/dark blocks
-    ox = FG_STONE * TS;
-    spriteFill(game, id, ox, 0, TS, TS, COLOR_RGB(130, 130, 135));
-    spriteFill(game, id, ox + 1, 1, 6, 6, COLOR_RGB(148, 148, 152));
-    spriteFill(game, id, ox + 9, 9, 5, 5, COLOR_RGB(108, 108, 112));
-    for (int i = 0; i < TS; i++) {
-        game.SetSpritePixel(id, ox + i, 0, COLOR_RGB(100, 100, 105));
-        game.SetSpritePixel(id, ox + i, 15, COLOR_RGB(100, 100, 105));
-        game.SetSpritePixel(id, ox, i, COLOR_RGB(100, 100, 105));
-        game.SetSpritePixel(id, ox + 15, i, COLOR_RGB(100, 100, 105));
-    }
-
-    return id;
 }
 
 // Make background tileset (5 tiles in a row = 80x16 sprite)
@@ -140,9 +96,11 @@ int main()
     game.Open(SW, SH, "14 - Tilemap Two-Layer Scrolling", true);
     game.ShowFps(true);
 
-    // ---- Make tileset ----
-    int fgTS = makeFgTileset(game);
+    // ---- Load tilesets and sprites ----
+    int fgTS = game.LoadSprite("../assets/tileset.png");      // 64x16, 4 tiles
     int bgTS = makeBgTileset(game);
+    int charSpr = game.LoadSprite("../assets/character.png"); // 32x48
+    int treeSpr = game.LoadSprite("../assets/tree.png");      // 32x64
 
     // ---- Create maps ----
     const int FG_C = 80, FG_R = 30;   // Foreground 80x30 = 1280x480
@@ -185,9 +143,14 @@ int main()
     // High stone platform
     fillRow(game, fgMap, 17, 66, 73, FG_STONE);
 
+    // ---- Trees (decoration) ----
+    int treeX[] = { 5*TS, 25*TS, 38*TS, 55*TS, 70*TS };
+    int treeCount = 5;
+    int treeY = (FG_R - 3) * TS - 61;
+
     // ---- Player ----
     float playerX = 48.0f;
-    float playerY = (float)((FG_R - 3) * TS - 20); // Stand on ground
+    float playerY = (float)((FG_R - 3) * TS - CHAR_FOOT); // Stand on ground
     float speed = 180.0f;
     int facing = 1;    // 1=right, -1=left
 
@@ -206,10 +169,10 @@ int main()
         }
         // Limit player range
         if (playerX < 0) playerX = 0;
-        if (playerX > FG_C * TS - 12) playerX = (float)(FG_C * TS - 12);
+        if (playerX > FG_C * TS - CHAR_W) playerX = (float)(FG_C * TS - CHAR_W);
 
         // ---- Camera follow ----
-        float cameraX = playerX - SW / 2 + 6;
+        float cameraX = playerX - SW / 2 + CHAR_W / 2;
         float maxCam = (float)(FG_C * TS - SW);
         if (cameraX < 0) cameraX = 0;
         if (cameraX > maxCam) cameraX = maxCam;
@@ -224,17 +187,15 @@ int main()
         int camX = (int)cameraX;
         game.DrawTilemap(fgMap, -camX, 0);
 
-        // ---- Draw player (block person) ----
+        // ---- Draw trees ----
+        for (int i = 0; i < treeCount; i++)
+            game.DrawSpriteEx(treeSpr, treeX[i] - camX, treeY, SPRITE_COLORKEY);
+
+        // ---- Draw player ----
         int px = (int)playerX - camX;
         int py = (int)playerY;
-        // Body
-        game.FillRect(px, py, 12, 20, COLOR_RGB(220, 60, 60));
-        // Eyes (offset based on facing direction)
-        int eyeOff = (facing > 0) ? 2 : 0;
-        game.FillRect(px + 2 + eyeOff, py + 4, 3, 3, COLOR_WHITE);
-        game.FillRect(px + 7 + eyeOff, py + 4, 3, 3, COLOR_WHITE);
-        game.FillRect(px + 3 + eyeOff, py + 5, 2, 2, COLOR_BLACK);
-        game.FillRect(px + 8 + eyeOff, py + 5, 2, 2, COLOR_BLACK);
+        int pflags = SPRITE_COLORKEY | ((facing < 0) ? SPRITE_FLIP_H : 0);
+        game.DrawSpriteEx(charSpr, px, py, pflags);
 
         // ---- HUD ----
         game.FillRect(0, 0, 230, 38, COLOR_RGB(15, 15, 25));
@@ -249,5 +210,7 @@ int main()
 
     game.FreeTilemap(fgMap);
     game.FreeTilemap(bgMap);
+    game.FreeSprite(charSpr);
+    game.FreeSprite(treeSpr);
     return 0;
 }
