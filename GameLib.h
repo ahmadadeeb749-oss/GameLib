@@ -590,7 +590,11 @@ static int _gamelib_load_apis()
 
     HMODULE hGdi32 = LoadLibraryA("gdi32.dll");
     HMODULE hWinmm = LoadLibraryA("winmm.dll");
-    if (!hGdi32 || !hWinmm) return -1;
+    if (!hGdi32 || !hWinmm) {
+        if (hGdi32) FreeLibrary(hGdi32);
+        if (hWinmm) FreeLibrary(hWinmm);
+        return -1;
+    }
 
     _gl_SetDIBitsToDevice = (PFN_SetDIBitsToDevice)GetProcAddress(hGdi32, "SetDIBitsToDevice");
     _gl_GetStockObject    = (PFN_GetStockObject)GetProcAddress(hGdi32, "GetStockObject");
@@ -621,6 +625,19 @@ static int _gamelib_load_apis()
         !_gl_timeGetTime ||
         !_gl_timeBeginPeriod  || !_gl_timeEndPeriod ||
         !_gl_PlaySoundA       || !_gl_mciSendStringA) {
+        // NULL out all pointers to prevent dangling state
+        _gl_SetDIBitsToDevice = NULL; _gl_GetStockObject = NULL;
+        _gl_CreateCompatibleDC = NULL; _gl_DeleteDC = NULL;
+        _gl_CreateDIBSection = NULL; _gl_SelectObject = NULL;
+        _gl_DeleteObject = NULL; _gl_BitBlt = NULL;
+        _gl_CreateFontW = NULL; _gl_TextOutW = NULL;
+        _gl_SetTextColor = NULL; _gl_SetBkMode = NULL;
+        _gl_GetTextExtentPoint32W = NULL; _gl_GdiFlush = NULL;
+        _gl_timeGetTime = NULL; _gl_timeBeginPeriod = NULL;
+        _gl_timeEndPeriod = NULL; _gl_PlaySoundA = NULL;
+        _gl_mciSendStringA = NULL;
+        FreeLibrary(hGdi32);
+        FreeLibrary(hWinmm);
         return -1;
     }
     _gamelib_apis_loaded = 1;
@@ -840,6 +857,13 @@ GameLib::GameLib()
         srand((unsigned int)time(NULL));
         _srandDone = true;
     }
+    // Load core APIs (gdi32/winmm) at construction time
+    // These are Windows system DLLs and should always succeed
+    if (_gamelib_load_apis() != 0) {
+        MessageBoxA(NULL, "GameLib: Failed to load gdi32.dll or winmm.dll",
+                    "Fatal Error", MB_OK | MB_ICONERROR);
+        exit(1);
+    }
 }
 
 
@@ -1023,7 +1047,7 @@ void GameLib::_InitDIBInfo(void *ptr, int width, int height)
     info->bmiHeader.biPlanes = 1;
     info->bmiHeader.biBitCount = 32;
     info->bmiHeader.biCompression = BI_RGB;
-    info->bmiHeader.biSizeImage = width * height * 4;
+    info->bmiHeader.biSizeImage = (DWORD)((size_t)width * height * 4);
 }
 
 
@@ -1049,8 +1073,8 @@ void GameLib::_DispatchMessages()
 //---------------------------------------------------------------------
 int GameLib::Open(int width, int height, const char *title, bool center)
 {
-    // Dynamically load gdi32/winmm API
-    if (_gamelib_load_apis() != 0) return -5;
+    // Validate dimensions
+    if (width <= 0 || height <= 0 || width > 16384 || height > 16384) return -7;
 
     // Destroy existing resources first
     if (_memDC) {
@@ -1093,7 +1117,7 @@ int GameLib::Open(int width, int height, const char *title, bool center)
         return -3;
     }
     _framebuffer = (uint32_t*)pBits;
-    memset(_framebuffer, 0, width * height * sizeof(uint32_t));
+    memset(_framebuffer, 0, (size_t)width * height * sizeof(uint32_t));
 
     // Select DIB Section into memory DC
     _oldBmp = (HBITMAP)_gl_SelectObject(_memDC, _dibSection);
@@ -1324,8 +1348,8 @@ void GameLib::_UpdateTitleFps()
 void GameLib::Clear(uint32_t color)
 {
     if (!_framebuffer) return;
-    int count = _width * _height;
-    for (int i = 0; i < count; i++) _framebuffer[i] = color;
+    size_t count = (size_t)_width * _height;
+    for (size_t i = 0; i < count; i++) _framebuffer[i] = color;
 }
 
 void GameLib::SetPixel(int x, int y, uint32_t color)
@@ -1505,16 +1529,16 @@ void GameLib::FillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, uint3
     for (int y = y1; y <= y3; y++) {
         int xa, xb;
         // y3 != y1 is always true here (degenerate case returned above)
-        xa = x1 + (x3 - x1) * (y - y1) / (y3 - y1);
+        xa = x1 + (int)((int64_t)(x3 - x1) * (y - y1) / (y3 - y1));
         if (y < y2) {
             if (y2 != y1) {
-                xb = x1 + (x2 - x1) * (y - y1) / (y2 - y1);
+                xb = x1 + (int)((int64_t)(x2 - x1) * (y - y1) / (y2 - y1));
             } else {
                 xb = x1;
             }
         } else {
             if (y3 != y2) {
-                xb = x2 + (x3 - x2) * (y - y2) / (y3 - y2);
+                xb = x2 + (int)((int64_t)(x3 - x2) * (y - y2) / (y3 - y2));
             } else {
                 xb = x2;
             }
