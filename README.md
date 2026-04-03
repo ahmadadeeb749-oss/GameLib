@@ -43,7 +43,9 @@ int main()
 g++ main.cpp -o game.exe
 ```
 
-没了。不需要配置项目，不需要下载 SDK，不用改 IDE 设置，不需要链接一堆库。
+没了。不需要配置项目，不需要下载 SDK，不用改 IDE 设置，不需要链接一堆库。运行一下，可以用方向键操控小球：
+
+![](https://skywind3000.github.io/images/p/gamelib/demo1.png)
 
 编译参数可以选择性加一个 `-mwindows` （也可以不加）：
 
