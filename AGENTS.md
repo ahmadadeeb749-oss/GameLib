@@ -17,7 +17,8 @@
 ## Documentation
 
 ```
-- docs/GameLib.md   # tech spec
+- docs/GameLib.md   # GameLib.h 的技术规格，如果要用它做游戏请先阅读
+- docs/Manual.md    # GameLib.h 的接口说明，如果要用它做游戏请先阅读
 ```
 
 ## Requirements
@@ -26,3 +27,7 @@
 - 使用 Dev-Cpp 5 里自带的 gcc 4.9.2 也能编译。
 - 动态加载方式避免编译引入额外的 -lwinmm -lgdi32 等参数。
 - 包括：窗口管理，二级缓存，输入输出，图形绘制，精灵，声音，文字等功能。
+
+## Guidelines
+
+- 如果要使用 GameLib.h 实现游戏，请先阅读 docs 目录下面的 GameLib.md 文件，里面包含 GameLib.h 的设计思路，以及 Manual.md 文件，里面是 GameLib.h 的接口说明。
