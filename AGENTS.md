@@ -7,7 +7,7 @@
 ```
 - assets/    # images and audios
 - docs/      # documentations
-- examples/  # examples (01~16 渐进式示例，可作为参考和回归测试)
+- examples/  # examples (01~17 渐进式示例，可作为参考和回归测试)
 - tests/     # tests
 - GameLib.h  # main source (Win32 主线，单头文件，所有实现都在这一个文件里)
 - GameLib.SDL.h # independent SDL product line (跨平台 SDL 版单头文件)
@@ -81,4 +81,4 @@ g++ -o output.exe source.cpp -mwindows
 - `GameLib.SDL.h` 是独立 SDL 产品线，不替代 `GameLib.h` 的 Win32 零依赖主线；修改时不要把两者的约束混为一谈。
 - 先阅读 `docs/GameLib.SDL.md`，确认 SDL 版的目标平台、可选依赖、兼容边界和当前实现决策。
 - 修改 `GameLib.SDL.h` 时优先保持 `GameLib` 风格 API 与软件 framebuffer 语义不变。
-- 修改后优先用 `tests/sdldemo1.cpp` ~ `tests/sdldemo6.cpp` 做回归验证，分别覆盖基础绘制、字体、音频、真实资产 Tilemap 与完整游戏循环路径。
+- 修改后优先用 `tests/sdldemo1.cpp` ~ `tests/sdldemo13.cpp` 做回归验证，分别覆盖基础绘制、字体、音频、真实资产 Tilemap、完整游戏循环、经典碰撞/关卡清除、网格离散移动、接取判定，以及精灵基础展示、精灵帧动画与声音演示路径。

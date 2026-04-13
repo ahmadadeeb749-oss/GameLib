@@ -893,7 +893,7 @@ static bool _srandDone;
 - 当前状态：已完成。`DrawTextFont`、字体测量、best-effort 字体解析、`PlayWAV`、`PlayMusic`、`PlayBeep` 都已落地。
 - 回归入口：`tests/sdldemo2.cpp`、`tests/sdldemo3.cpp`、`tests/sdldemo4.cpp`。
 
-### 阶段 4：文档与示例迁移（基本完成）
+### 阶段 4：文档与示例迁移（当前阶段目标已完成）
 
 - 为 SDL 版补单独 README 段落
 - 增加 SDL 版构建命令
@@ -908,17 +908,26 @@ static bool _srandDone;
 - `docs/GameLib.SDL.md` 已同步到当前实现状态。
 - `AGENTS.md` 已补充 `GameLib.SDL.h` / `docs/GameLib.SDL.md` 的索引与用途。
 - README 仅保留一句 SDL 产品线提示，主叙事仍突出 Win32 零依赖主线。
-- `tests/sdldemo1.cpp` ~ `tests/sdldemo6.cpp` 已形成最小 SDL 回归集，其中 `tests/sdldemo5.cpp` 是从 `examples/14_tilemap.cpp` 迁移来的代表性资产示例，`tests/sdldemo6.cpp` 是从 `examples/13_space_shooter.cpp` 迁移来的完整游戏循环示例。
-- 其中 `tests/sdldemo5.cpp` 与 `tests/sdldemo6.cpp` 已完成用户实机运行验证，说明 SDL 版当前不仅能编译，也已经覆盖了真实素材路径与完整小游戏循环的实际运行场景。
+- `tests/sdldemo1.cpp` ~ `tests/sdldemo13.cpp` 已形成最小 SDL 回归集，其中 `tests/sdldemo5.cpp` 是从 `examples/14_tilemap.cpp` 迁移来的代表性资产示例，`tests/sdldemo6.cpp` 是从 `examples/13_space_shooter.cpp` 迁移来的完整游戏循环示例，`tests/sdldemo7.cpp` 是从 `examples/12_breakout.cpp` 迁移来的经典碰撞/清版示例，`tests/sdldemo8.cpp` 是从 `examples/11_snake.cpp` 迁移来的网格离散移动示例，`tests/sdldemo9.cpp` 是从 `examples/06_catch_fruit.cpp` 迁移来的接取/漏接判定示例，`tests/sdldemo10.cpp` 是从 `examples/09_sprite_animation.cpp` 迁移来的精灵帧动画示例，`tests/sdldemo11.cpp` 是从 `examples/10_sound_demo.cpp` 迁移来的声音演示示例，`tests/sdldemo12.cpp` 是从 `examples/08_sprite_demo.cpp` 迁移来的精灵基础展示示例，`tests/sdldemo13.cpp` 是从 `examples/16_playsound.cpp` 迁移来的最小音效触发示例。
+- 其中 `tests/sdldemo5.cpp` ~ `tests/sdldemo13.cpp` 已全部完成用户实机运行验证；说明 SDL 版当前不仅能编译，也已经覆盖了真实素材路径、完整小游戏循环、经典碰撞/清版、网格离散移动、接取判定、精灵基础绘制、精灵帧动画以及声音控制等实际使用场景。
+- 本阶段收口结论：`GameLib.SDL.h` 已具备独立产品线的最小可维护状态，后续工作可以从“补齐代表性回归入口”切换到“按具体差异或新需求增量演进”。
 
 ### 14.5 当前剩余收尾项
 
 以下项目仍属于“已知差异或可继续完善项”，但不阻塞 SDL 版当前作为独立产品线使用：
 
-- 还没有把 `examples/` 中的更多 Win32 示例系统迁成 SDL 版；目前以 `tests/sdldemo1.cpp` ~ `tests/sdldemo6.cpp` 为代表性回归入口，其中已经覆盖了一个资产驱动示例和一个完整游戏循环示例。
+- `examples/01`、`02`、`03`、`04`、`05`、`07`、`15`、`17` 还没有逐个迁成 SDL 版独立测试，但它们覆盖的能力大多已经被现有 `sdldemo1.cpp` ~ `sdldemo13.cpp` 交叉覆盖，因此不阻塞本阶段收口。
+- 还没有把 `examples/` 中的更多 Win32 示例系统迁成 SDL 版；目前以 `tests/sdldemo1.cpp` ~ `tests/sdldemo13.cpp` 为代表性回归入口，其中已经覆盖了一个资产驱动示例、一个完整游戏循环示例、一个经典碰撞/清版示例、网格离散移动和接取判定两类轻量玩法示例，以及精灵基础展示、精灵动画和声音演示示例。
 - 字体家族名解析虽然已经有 best-effort 候选链，但不同平台上的字形、回退顺序与最终命中字库仍不保证完全一致。
 - `PlayMusic()` 的成功率仍受 `SDL_mixer` 在目标机器上的解码器支持影响；仓库内当前回归样例主要验证了 WAV 路径。
 - `LoadSpriteBMP()` 当前依赖 SDL 的 BMP 解码结果，而不是复刻 `GameLib.h` 的自有 BMP 解析实现；若后续发现具体兼容差异，再按案例补齐。
+
+### 14.6 建议回归顺序
+
+- 图形与精灵相关改动：优先回归 `tests/sdldemo1.cpp`、`tests/sdldemo5.cpp`、`tests/sdldemo10.cpp`、`tests/sdldemo12.cpp`。
+- 字体相关改动：优先回归 `tests/sdldemo2.cpp`、`tests/sdldemo3.cpp`。
+- 音频相关改动：优先回归 `tests/sdldemo4.cpp`、`tests/sdldemo11.cpp`、`tests/sdldemo13.cpp`。
+- 游戏循环、碰撞和输入相关改动：优先回归 `tests/sdldemo6.cpp`、`tests/sdldemo7.cpp`、`tests/sdldemo8.cpp`、`tests/sdldemo9.cpp`。
 
 ---
 
