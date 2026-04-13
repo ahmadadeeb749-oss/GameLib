@@ -303,7 +303,7 @@ int main()
 
 ## 示例程序
 
-`examples/` 目录包含 16 个由浅入深的示例，逐步展示 GameLib 的各项功能，覆盖窗口、图形、输入、精灵、声音、Tilemap 和字体文字。
+`examples/` 目录包含 17 个由浅入深的示例，逐步展示 GameLib 的各项功能，覆盖窗口、图形、输入、精灵、声音、Tilemap、字体文字和缩放绘制。
 
 编译任意示例：
 
@@ -356,6 +356,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 |-|-|-|
 | `15_font_text.cpp` | 可缩放字体 | DrawTextFont、中文文字输出、不同字号 |
 | `16_playsound.cpp` | 简单音效播放 | PlayWAV、按键触发音效 |
+| `17_sprite_scaling.cpp` | 精灵缩放绘制 | LoadSprite、DrawSpriteScaled / DrawSpriteFrameScaled、滚轮调比例 |
 
 
 
