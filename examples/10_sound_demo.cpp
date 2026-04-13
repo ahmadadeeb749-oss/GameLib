@@ -2,8 +2,8 @@
 //
 // Demo GameLib sound features: beep, WAV sound effects, MCI background music.
 // Note: PlayBeep is blocking, will pause briefly when pressed.
-// WAV/Music need corresponding files to exist, otherwise silent fail.
-// Learn: PlayBeep, PlayWAV, StopWAV, PlayMusic, StopMusic
+// PlayWAV/PlayMusic return bool so you can detect missing files.
+// Learn: PlayBeep, PlayWAV, StopWAV, PlayMusic, StopMusic, IsMusicPlaying
 //
 // Compile: g++ -o 10_sound_demo.exe 10_sound_demo.cpp -mwindows
 
@@ -14,7 +14,8 @@ int main()
     GameLib game;
     game.Open(640, 480, "10 - Sound Demo", true);
 
-    bool musicPlaying = false;
+    bool lastWavOk = true;
+    bool lastMusicOk = true;
 
     // Key note frequencies (C4 to B4)
     int notes[] = {262, 294, 330, 349, 392, 440, 494, 523};
@@ -60,7 +61,7 @@ int main()
         game.DrawText(55, 258, "W - Play WAV", COLOR_BLACK);
         if (game.IsKeyPressed(KEY_W)) {
             // Try to play WAV file from assets folder
-            game.PlayWAV("../assets/sound.wav");
+            lastWavOk = game.PlayWAV("../assets/sound.wav");
         }
 
         game.FillRect(260, 250, 200, 30, COLOR_RED);
@@ -69,28 +70,31 @@ int main()
             game.StopWAV();
 
         game.DrawText(40, 290, "(needs ../assets/sound.wav)", COLOR_GRAY);
+        game.DrawPrintf(40, 305, COLOR_LIGHT_GRAY, "Last WAV start: %s", lastWavOk ? "OK" : "Failed");
 
         // === Section 3: Background Music ===
         game.DrawText(40, 330, "Background Music (MCI):", COLOR_WHITE);
 
+        bool musicPlaying = game.IsMusicPlaying();
+
         game.FillRect(40, 350, 200, 30, musicPlaying ? COLOR_DARK_GREEN : COLOR_GREEN);
         game.DrawText(55, 358, "M - Play Music", COLOR_BLACK);
         if (game.IsKeyPressed(KEY_M) && !musicPlaying) {
-            game.PlayMusic("../assets/music.mp3");
-            musicPlaying = true;
+            lastMusicOk = game.PlayMusic("../assets/music.mp3");
+            musicPlaying = game.IsMusicPlaying();
         }
 
         game.FillRect(260, 350, 200, 30, COLOR_RED);
         game.DrawText(275, 358, "N - Stop Music", COLOR_BLACK);
         if (game.IsKeyPressed(KEY_N) && musicPlaying) {
             game.StopMusic();
-            musicPlaying = false;
         }
 
         game.DrawText(40, 390, "(needs ../assets/music.mp3)", COLOR_GRAY);
 
         // Status
-        game.DrawPrintf(40, 420, COLOR_LIGHT_GRAY, "Music: %s", musicPlaying ? "Playing" : "Stopped");
+        game.DrawPrintf(40, 420, COLOR_LIGHT_GRAY, "Music: %s", game.IsMusicPlaying() ? "Playing" : "Stopped");
+        game.DrawPrintf(40, 436, COLOR_LIGHT_GRAY, "Last music start: %s", lastMusicOk ? "OK" : "Failed");
 
         // Bottom hint
         game.DrawText(40, 460, "ESC to exit", COLOR_DARK_GRAY);

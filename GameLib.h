@@ -133,8 +133,8 @@ typedef DWORD   (WINAPI *PFN_timeBeginPeriod)(UINT);
 typedef DWORD   (WINAPI *PFN_timeEndPeriod)(UINT);
 typedef UINT (WINAPI *PFN_timeSetEvent)(UINT, UINT, DWORD_PTR, DWORD_PTR, UINT);
 typedef UINT (WINAPI *PFN_timeKillEvent)(UINT);
-typedef BOOL    (WINAPI *PFN_PlaySoundA)(LPCSTR, HMODULE, DWORD);
-typedef MCIERROR (WINAPI *PFN_mciSendStringA)(LPCSTR, LPSTR, UINT, HWND);
+typedef BOOL    (WINAPI *PFN_PlaySoundW)(LPCWSTR, HMODULE, DWORD);
+typedef MCIERROR (WINAPI *PFN_mciSendStringW)(LPCWSTR, LPWSTR, UINT, HWND);
 
 // gdiplus.dll
 typedef int  (WINAPI *PFN_GdiplusStartup)(ULONG_PTR*, void*, void*);
@@ -357,10 +357,11 @@ public:
 
     // -------- Sound --------
     void PlayBeep(int frequency, int duration);
-    void PlayWAV(const char *filename, bool loop = false);
+    bool PlayWAV(const char *filename, bool loop = false);
     void StopWAV();
-    void PlayMusic(const char *filename, bool loop = true);
+    bool PlayMusic(const char *filename, bool loop = true);
     void StopMusic();
+    bool IsMusicPlaying() const;
 
     // -------- Helper Functions --------
     static int Random(int minVal, int maxVal);
@@ -597,8 +598,8 @@ static PFN_timeBeginPeriod     _gl_timeBeginPeriod    = NULL;
 static PFN_timeEndPeriod       _gl_timeEndPeriod      = NULL;
 static PFN_timeSetEvent        _gl_timeSetEvent       = NULL;
 static PFN_timeKillEvent       _gl_timeKillEvent      = NULL;
-static PFN_PlaySoundA          _gl_PlaySoundA         = NULL;
-static PFN_mciSendStringA      _gl_mciSendStringA     = NULL;
+static PFN_PlaySoundW          _gl_PlaySoundW         = NULL;
+static PFN_mciSendStringW      _gl_mciSendStringW     = NULL;
 
 static int _gamelib_apis_loaded = 0;
 
@@ -634,8 +635,8 @@ static int _gamelib_load_apis()
     _gl_timeEndPeriod     = (PFN_timeEndPeriod)GetProcAddress(hWinmm, "timeEndPeriod");
     _gl_timeSetEvent      = (PFN_timeSetEvent)GetProcAddress(hWinmm, "timeSetEvent");
     _gl_timeKillEvent     = (PFN_timeKillEvent)GetProcAddress(hWinmm, "timeKillEvent");
-    _gl_PlaySoundA        = (PFN_PlaySoundA)GetProcAddress(hWinmm, "PlaySoundA");
-    _gl_mciSendStringA    = (PFN_mciSendStringA)GetProcAddress(hWinmm, "mciSendStringA");
+    _gl_PlaySoundW        = (PFN_PlaySoundW)GetProcAddress(hWinmm, "PlaySoundW");
+    _gl_mciSendStringW    = (PFN_mciSendStringW)GetProcAddress(hWinmm, "mciSendStringW");
 
     if (!_gl_SetDIBitsToDevice || !_gl_GetStockObject ||
         !_gl_CreateCompatibleDC || !_gl_DeleteDC ||
@@ -644,7 +645,7 @@ static int _gamelib_load_apis()
         !_gl_SetTextColor || !_gl_SetBkMode || !_gl_GetTextExtentPoint32W ||
         !_gl_timeGetTime ||
         !_gl_timeBeginPeriod  || !_gl_timeEndPeriod ||
-        !_gl_PlaySoundA       || !_gl_mciSendStringA) {
+        !_gl_PlaySoundW       || !_gl_mciSendStringW) {
         // NULL out all pointers to prevent dangling state
         _gl_SetDIBitsToDevice = NULL; _gl_GetStockObject = NULL;
         _gl_CreateCompatibleDC = NULL; _gl_DeleteDC = NULL;
@@ -655,8 +656,8 @@ static int _gamelib_load_apis()
         _gl_GetTextExtentPoint32W = NULL; _gl_GdiFlush = NULL;
         _gl_timeGetTime = NULL; _gl_timeBeginPeriod = NULL;
         _gl_timeEndPeriod = NULL; _gl_timeSetEvent = NULL;
-        _gl_timeKillEvent = NULL; _gl_PlaySoundA = NULL;
-        _gl_mciSendStringA = NULL;
+        _gl_timeKillEvent = NULL; _gl_PlaySoundW = NULL;
+        _gl_mciSendStringW = NULL;
         FreeLibrary(hGdi32);
         FreeLibrary(hWinmm);
         return -1;
@@ -896,9 +897,9 @@ GameLib::GameLib()
 GameLib::~GameLib()
 {
     // Stop music
-    if (_musicPlaying && _gl_mciSendStringA) {
-        _gl_mciSendStringA("stop gamelib_music", NULL, 0, NULL);
-        _gl_mciSendStringA("close gamelib_music", NULL, 0, NULL);
+    if (_musicPlaying && _gl_mciSendStringW) {
+        _gl_mciSendStringW(L"stop gamelib_music", NULL, 0, NULL);
+        _gl_mciSendStringW(L"close gamelib_music", NULL, 0, NULL);
         _musicPlaying = false;
     }
     // Free all sprites
@@ -1690,6 +1691,35 @@ static wchar_t *_gamelib_utf8_to_wide(const char *text, int *outLen)
     return wideText;
 }
 
+static FILE *_gamelib_fopen_utf8(const char *filename, const wchar_t *mode)
+{
+    if (!filename || !mode) return NULL;
+
+    wchar_t *wideFilename = _gamelib_utf8_to_wide(filename, NULL);
+    if (!wideFilename) return NULL;
+
+    FILE *fp = _wfopen(wideFilename, mode);
+    free(wideFilename);
+    return fp;
+}
+
+static bool _gamelib_mci_path_is_safe(const char *filename)
+{
+    if (!filename) return false;
+
+    for (const char *p = filename; *p; p++) {
+        if (*p == '"' || *p == '\r' || *p == '\n') return false;
+    }
+    return true;
+}
+
+static void _gamelib_close_music_alias()
+{
+    if (!_gl_mciSendStringW) return;
+    _gl_mciSendStringW(L"stop gamelib_music", NULL, 0, NULL);
+    _gl_mciSendStringW(L"close gamelib_music", NULL, 0, NULL);
+}
+
 static HFONT _gamelib_create_font_utf8(const char *fontName, int fontSize)
 {
     const char *name = fontName ? fontName : GAMELIB_DEFAULT_FONT_NAME;
@@ -1916,7 +1946,7 @@ int GameLib::CreateSprite(int width, int height)
 
 int GameLib::LoadSpriteBMP(const char *filename)
 {
-    FILE *fp = fopen(filename, "rb");
+    FILE *fp = _gamelib_fopen_utf8(filename, L"rb");
     if (!fp) return -1;
 
     unsigned char header[54];
@@ -2005,7 +2035,7 @@ int GameLib::LoadSpriteBMP(const char *filename)
 int GameLib::LoadSprite(const char *filename)
 {
     // Read file into memory
-    FILE *fp = fopen(filename, "rb");
+    FILE *fp = _gamelib_fopen_utf8(filename, L"rb");
     if (!fp) return -1;
 
     fseek(fp, 0, SEEK_END);
@@ -2233,61 +2263,81 @@ void GameLib::PlayBeep(int frequency, int duration)
     Beep(frequency, duration);
 }
 
-void GameLib::PlayWAV(const char *filename, bool loop)
+bool GameLib::PlayWAV(const char *filename, bool loop)
 {
+    if (!_gl_PlaySoundW || !filename) return false;
+
+    wchar_t *wideFilename = _gamelib_utf8_to_wide(filename, NULL);
+    if (!wideFilename) return false;
+
     DWORD flags = SND_FILENAME | SND_ASYNC;
     if (loop) flags |= SND_LOOP;
-    _gl_PlaySoundA(filename, NULL, flags);
+
+    BOOL ok = _gl_PlaySoundW(wideFilename, NULL, flags);
+    free(wideFilename);
+    return ok != 0;
 }
 
 void GameLib::StopWAV()
 {
-    _gl_PlaySoundA(NULL, NULL, 0);
+    if (_gl_PlaySoundW)
+        _gl_PlaySoundW(NULL, NULL, 0);
 }
 
-void GameLib::PlayMusic(const char *filename, bool loop)
+bool GameLib::PlayMusic(const char *filename, bool loop)
 {
-    if (!filename) return;
+    if (!filename || !_gl_mciSendStringW) return false;
 
-    // Reject filenames containing quotes (MCI command injection prevention)
-    for (const char *p = filename; *p; p++) {
-        if (*p == '"') return;
-    }
+    if (!_gamelib_mci_path_is_safe(filename)) return false;
+
+    wchar_t *wideFilename = _gamelib_utf8_to_wide(filename, NULL);
+    if (!wideFilename) return false;
 
     // Stop previous music first
     if (_musicPlaying) {
-        _gl_mciSendStringA("stop gamelib_music", NULL, 0, NULL);
-        _gl_mciSendStringA("close gamelib_music", NULL, 0, NULL);
+        _gamelib_close_music_alias();
         _musicPlaying = false;
     }
+
     // Open audio file (supports mp3/mid/wav etc., formats supported by MCI)
-    char cmd[1024];
-    int n = snprintf(cmd, sizeof(cmd), "open \"%s\" type mpegvideo alias gamelib_music", filename);
-    if (n < 0 || n >= (int)sizeof(cmd)) return;  // truncation guard
-    if (_gl_mciSendStringA(cmd, NULL, 0, NULL) != 0) {
+    std::wstring openCmd = L"open \"";
+    openCmd += wideFilename;
+    openCmd += L"\" type mpegvideo alias gamelib_music";
+    if (_gl_mciSendStringW(openCmd.c_str(), NULL, 0, NULL) != 0) {
         // If mpegvideo fails, try auto-detect type
-        n = snprintf(cmd, sizeof(cmd), "open \"%s\" alias gamelib_music", filename);
-        if (n < 0 || n >= (int)sizeof(cmd)) return;  // truncation guard
-        if (_gl_mciSendStringA(cmd, NULL, 0, NULL) != 0) {
-            return;
+        openCmd = L"open \"";
+        openCmd += wideFilename;
+        openCmd += L"\" alias gamelib_music";
+        if (_gl_mciSendStringW(openCmd.c_str(), NULL, 0, NULL) != 0) {
+            free(wideFilename);
+            return false;
         }
     }
+    free(wideFilename);
+
     // Play
-    if (loop) {
-        _gl_mciSendStringA("play gamelib_music repeat", NULL, 0, NULL);
-    } else {
-        _gl_mciSendStringA("play gamelib_music", NULL, 0, NULL);
+    const wchar_t *playCmd = loop ? L"play gamelib_music repeat"
+                                  : L"play gamelib_music";
+    if (_gl_mciSendStringW(playCmd, NULL, 0, NULL) != 0) {
+        _gamelib_close_music_alias();
+        return false;
     }
+
     _musicPlaying = true;
+    return true;
 }
 
 void GameLib::StopMusic()
 {
     if (_musicPlaying) {
-        _gl_mciSendStringA("stop gamelib_music", NULL, 0, NULL);
-        _gl_mciSendStringA("close gamelib_music", NULL, 0, NULL);
+        _gamelib_close_music_alias();
         _musicPlaying = false;
     }
+}
+
+bool GameLib::IsMusicPlaying() const
+{
+    return _musicPlaying;
 }
 
 

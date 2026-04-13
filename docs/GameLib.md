@@ -418,6 +418,7 @@ static bool _srandDone; // srand 是否已初始化
 
 #### `int LoadSpriteBMP(const char *filename)`
 - 从 BMP 文件加载精灵，支持 **8-bit（调色板）、24-bit 和 32-bit** BMP
+- `filename` 按 **UTF-8** 解释，内部转为宽字符路径打开文件
 - **8-bit 调色板支持**：自动读取 BMP 调色板（最多 256 色），每个像素字节作为调色板索引，转换为 32-bit ARGB（alpha 默认 0xFF）
 - 处理 bottom-up / top-down 行序
 - 每行按 4 字节对齐读取
@@ -428,6 +429,7 @@ static bool _srandDone; // srand 是否已初始化
 #### `int LoadSprite(const char *filename)`
 - **通用图片加载**，通过动态加载 GDI+ 支持 **PNG、JPG、BMP、GIF、TIFF** 等格式
 - 首次调用时懒加载 `gdiplus.dll` 和 `ole32.dll`，调用 `GdiplusStartup` 初始化
+- `filename` 按 **UTF-8** 解释，内部转为宽字符路径读取文件
 - 将文件读入内存，通过 `CreateStreamOnHGlobal` 创建 COM IStream，再由 `GdipCreateBitmapFromStream` 解码
 - 始终请求 **PixelFormat32bppARGB** 格式输出，保证像素格式统一
 - **24 位图片 Alpha 修正**：若 GDI+ 解码后所有像素的 alpha 均为 0（24 位无 alpha 通道的图片），自动将 alpha 设为 255（不透明）
@@ -484,25 +486,33 @@ static bool _srandDone; // srand 是否已初始化
 #### `void PlayBeep(int frequency, int duration)`
 - Windows Beep（阻塞式，简单蜂鸣）
 
-#### `void PlayWAV(const char *filename, bool loop = false)`
-- 使用 `PlaySoundA` 播放 WAV 文件（异步）
+#### `bool PlayWAV(const char *filename, bool loop = false)`
+- 使用 `PlaySoundW` 播放 WAV 文件（异步）
+- `filename` 按 **UTF-8** 解释，内部转为宽字符路径
 - `loop=true` 时循环播放
+- 成功启动返回 `true`，失败返回 `false`
 
 #### `void StopWAV()`
 - 停止当前 WAV 播放
 
-#### `void PlayMusic(const char *filename, bool loop = true)`
+#### `bool PlayMusic(const char *filename, bool loop = true)`
 - 使用 **MCI (Media Control Interface)** 播放背景音乐
 - 支持 MP3、MIDI、WAV 等 MCI 支持的格式
 - 默认循环播放（`loop=true`）
 - 先尝试以 `mpegvideo` 类型打开，失败则自动检测类型
 - 使用固定别名 `gamelib_music`，同时只能播放一首背景音乐
 - 调用时会自动停止之前的音乐
-- **安全性**：`filename` 为 NULL 时直接返回；拒绝包含引号的文件名（防止 MCI 命令注入）；`snprintf` 截断保护
+- `filename` 按 **UTF-8** 解释，内部转为宽字符路径
+- **安全性**：`filename` 为 NULL 时直接返回 `false`；拒绝包含引号和换行的文件名（防止 MCI 命令注入）
 - **与 PlayWAV 独立**，可同时播放背景音乐和音效
+- 成功启动返回 `true`，失败返回 `false`
 
 #### `void StopMusic()`
 - 停止当前 MCI 背景音乐并释放资源
+
+#### `bool IsMusicPlaying() const`
+- 返回库当前记录的背景音乐播放状态
+- 适合 UI 状态同步和避免示例代码手工维护布尔变量
 
 ### 6.9 工具函数（static）
 
@@ -677,7 +687,8 @@ int main() {
 | 使用 `GWLP_USERDATA`（非 `GWL_USERDATA`） | 兼容 64 位编译 |
 | 精灵用整数 ID 管理 | 比对象指针更简单，适合初学者 |
 | 使用 `malloc/free` 管理像素内存 | 与 C 风格一致，简单直接 |
-| 窗口类注册使用 `RegisterClassW` + `CreateWindowW` | 全 Unicode 链一致（`RegisterClassW` → `CreateWindowW` → `DefWindowProcW`），标题支持 UTF-8 |
+| 窗口类注册使用 `RegisterClassW` + `CreateWindowW` | 全 Unicode 链一致（`RegisterClassW` → `CreateWindowW` → `DefWindowProcW`），窗口标题支持 UTF-8 |
+| 资源文件路径统一按 UTF-8 解释 | `LoadSprite*` / `PlayWAV` / `PlayMusic` 内部转宽字符，避免中文目录和文件名失效 |
 | 键盘重复过滤（bit 30） | 避免按住一个键产生大量 KeyDown 事件 |
 | FPS 每秒统计一次 | 平滑显示，避免帧间波动 |
 | Color Key 用品红 (0xFFFF00FF) 而非黑色 | 黑色难以制作和判断，品红是 2D 资源常用透明色 |
@@ -716,4 +727,4 @@ int main() {
 | `LoadSpriteBMP` 用 `memcpy` 读 BMP 头 | 避免通过指针强制转换（aliasing cast）读取未对齐的多字节字段，符合严格别名规则 |
 | `_gamelib_load_apis` 失败时清理所有指针 | GetProcAddress 部分失败时 NULL out 所有指针 + FreeLibrary 两个 DLL，防止悬空指针 |
 | `_gamelib_gdiplus_init` 失败时分级清理 | -2/-3 错误路径 FreeLibrary 已加载的 DLL；-4 错误（`GdiplusStartup` 失败）不释放 DLL 因为函数指针已指向 DLL 内部地址 |
-| `PlayMusic` 拒绝含引号的文件名 | MCI 命令是字符串拼接，引号可导致命令注入；`snprintf` 截断保护防止缓冲区溢出 |
+| `PlayMusic` 使用 `mciSendStringW` + 路径过滤 | 路径支持 UTF-8；拒绝引号和换行，避免 MCI 字符串命令注入 |

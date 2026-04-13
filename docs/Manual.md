@@ -46,8 +46,8 @@
 | 函数                                         | 说明                            |
 | -------------------------------------------- | ------------------------------- |
 | `CreateSprite(w, h)`                         | 创建空白精灵，返回 ID           |
-| `LoadSprite(filename)`                       | 加载图片精灵（PNG/JPG/BMP/GIF） |
-| `LoadSpriteBMP(filename)`                    | 从 BMP 加载精灵（8/24/32-bit）  |
+| `LoadSprite(filename)`                       | 加载图片精灵（PNG/JPG/BMP/GIF，路径按 UTF-8） |
+| `LoadSpriteBMP(filename)`                    | 从 BMP 加载精灵（8/24/32-bit，路径按 UTF-8）  |
 | `FreeSprite(id)`                             | 释放精灵                        |
 | `DrawSprite(id, x, y)`                       | 绘制精灵                        |
 | `DrawSpriteEx(id, x, y, flags)`              | 带翻转/透明/Alpha混合绘制       |
@@ -70,10 +70,11 @@
 
 | 函数                        | 说明                     |
 | --------------------------- | ------------------------ |
-| `PlayWAV(filename, loop)`   | 播放音效                 |
+| `PlayWAV(filename, loop)`   | 播放音效，成功返回 `true` |
 | `StopWAV()`                 | 停止音效                 |
-| `PlayMusic(filename, loop)` | 播放背景音乐（MP3/MIDI） |
+| `PlayMusic(filename, loop)` | 播放背景音乐（MP3/MIDI），成功返回 `true` |
 | `StopMusic()`               | 停止背景音乐             |
+| `IsMusicPlaying()`          | 当前音乐是否处于播放状态 |
 | `PlayBeep(freq, duration)`  | 蜂鸣器                   |
 
 ### 工具
