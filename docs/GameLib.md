@@ -5,8 +5,8 @@
 `GameLib.h` 是一个面向初学者的 **单头文件游戏库**，基于 Win32 GDI，无需 SDL 或其他第三方库。目标用户是小朋友，用于在 Dev C++ (GCC 4.9.2) 环境下开发简单游戏（空战、俄罗斯方块、走迷宫等）。
 
 **文件位置**: `GameLib.h`
-**当前行数**: ~2381 行
-**最后修改**: 2026/04/03
+**当前行数**: 2879 行
+**最后修改**: 2026/04/14
 
 ---
 
@@ -36,13 +36,15 @@
 
 ### 1.4 图形自实现
 
-**不使用任何 GDI 绘图函数**（如 `LineTo`, `Ellipse` 等），所有图形算法自行实现：
+**不使用 `LineTo`、`Ellipse` 等 GDI 图元函数**，线段、圆、三角形等基础图形算法全部自行实现：
 - Bresenham 直线算法
 - 中点圆算法
 - 扫描线三角形填充
 - 内嵌 8x8 ASCII 位图字体
 
-唯一使用的 GDI 函数是 `BitBlt`（用于帧缓冲最终显示）和 `TextOutW`（用于 GDI 系统字体渲染）。
+GDI 只用于两类后端能力：
+- `BitBlt` 等函数负责把 DIB Section 帧缓冲提交到窗口
+- `TextOutW`、`CreateFontW`、`GetTextExtentPoint32W` 等函数负责当前 Windows 后端的可缩放字体绘制与测量
 
 ### 1.5 精灵系统
 
@@ -79,12 +81,13 @@ GameLib.h
 │       ├── 帧缓冲操作 (Clear, SetPixel, GetPixel)
 │       ├── 图形绘制 (Line, Rect, Circle, Triangle)
 │       ├── 文字渲染 (DrawText, DrawNumber, DrawTextScale, DrawPrintf)
-│       ├── 精灵系统 (Create, Load, Free, Draw)
-│       ├── 输入系统 (Key, Mouse)
+│       ├── 字体文字渲染 (DrawTextFont, GetTextWidthFont, GetTextHeightFont)
+│       ├── 精灵系统 (Create, Load, Free, Draw, Region, Scale, Frame)
+│       ├── 输入系统 (Key, Mouse, Released, Wheel, Active)
 │       ├── 声音 (Beep, WAV, Music/MCI)
 │       ├── 工具函数 (Random, 碰撞检测, 距离)
 │       ├── 网格辅助 (DrawGrid, FillCell)
-│       └── Tilemap 系统 (Create, Free, Set/Get, Draw)
+│       └── Tilemap 系统 (Create, Free, Set/Get, Convert, Fill/Clear, Draw)
 ├── #endif // GAMELIB_IMPLEMENTATION
 └── #endif // GAMELIB_H
 ```
@@ -113,7 +116,7 @@ GameLib.h
 ### 3.2 链接库
 
 - `gdi32` — BitBlt, CreateDIBSection, CreateCompatibleDC, CreateFontW, TextOutW, SelectObject, DeleteObject, DeleteDC, GetStockObject, SetDIBitsToDevice, SetTextColor, SetBkMode, GetTextExtentPoint32W, GdiFlush（通过 LoadLibrary 动态加载）
-- `winmm` — timeGetTime, timeBeginPeriod, PlaySound, mciSendString（通过 LoadLibrary 动态加载）
+- `winmm` — timeGetTime, timeBeginPeriod, timeEndPeriod, timeSetEvent, timeKillEvent, PlaySoundW, mciSendStringW（通过 LoadLibrary 动态加载）
 - `gdiplus` — GdiplusStartup, GdipCreateBitmapFromStream, GdipBitmapLockBits 等（通过 LoadLibrary 动态加载，首次调用 `LoadSprite` 时懒加载）
 - `ole32` — CreateStreamOnHGlobal（通过 LoadLibrary 动态加载，随 gdiplus 一起加载）
 - `user32` — 窗口管理（MSVC 自动链接，GCC 需要 `-mwindows`）
@@ -200,6 +203,7 @@ struct GameSprite {
     int width;          // 精灵宽度（像素）
     int height;         // 精灵高度（像素）
     uint32_t *pixels;   // ARGB 像素数组 (malloc 分配)
+    uint32_t colorKey; // 该精灵自己的 Color Key（默认 COLORKEY_DEFAULT）
     bool used;          // 槽位是否被使用
 };
 ```
@@ -236,7 +240,7 @@ HDC _memDC;             // 常备内存 DC
 HBITMAP _dibSection;    // DIB Section 位图
 HBITMAP _oldBmp;        // 旧位图（用于恢复）
 
-// DIB 信息（用于 CreateDIBSection）
+// DIB 信息（用于 CreateDIBSection，兼容 SetDIBitsToDevice 数据布局）
 unsigned char _bmi_data[sizeof(BITMAPINFO) + 16 * sizeof(RGBQUAD)];
 
 // 输入状态
@@ -245,6 +249,7 @@ int _keys_prev[512];    // 上一帧按键状态（用于边沿检测）
 int _mouseX, _mouseY;   // 鼠标坐标
 int _mouseButtons[3];   // 鼠标三键状态
 int _mouseButtons_prev[3]; // 上一帧鼠标状态（用于边沿检测）
+int _mouseWheelDelta;   // 自上次 Update() 以来累计的滚轮增量
 
 // 时间
 DWORD _timeStart;       // Open() 时的时间戳
@@ -253,6 +258,8 @@ float _deltaTime;       // 帧间隔（秒）
 float _fps;             // 当前 FPS
 float _fpsAccum;        // FPS 计数累加器
 DWORD _fpsTime;         // FPS 统计时间窗口起点
+HANDLE _timerEvent;     // 多媒体定时器触发的事件对象
+UINT _timerId;          // 多媒体定时器 ID（来自 timeSetEvent）
 
 // 精灵存储
 std::vector<GameSprite> _sprites;
@@ -290,19 +297,20 @@ static bool _srandDone; // srand 是否已初始化
 - 返回值: 0=成功, -1=窗口类注册失败, -2=创建 DC 失败, -3=创建 DIB Section 失败, -4=SelectObject 失败, -5=UTF-8 转换失败, -6=创建窗口失败, -7=尺寸超限
 - 使用 `GWLP_USERDATA` 存储 this 指针
 - 调用 `timeBeginPeriod(1)` 提高时钟精度
+- 尝试创建 1ms 周期的多媒体定时器事件（`CreateEventA + timeSetEvent`），供 `WaitFrame()` 更稳定地等待下一帧；若失败则自动回退到 `Sleep(1)`
 
 #### `bool IsClosed() const`
 - 窗口是否已关闭（WM_CLOSE 或 WM_DESTROY 触发）
 
 #### `void Update()`
 1. 通过 `BitBlt` 将 DIB Section 的 `_memDC` 刷新到窗口
-2. 保存上一帧按键状态到 `_keys_prev`，鼠标状态到 `_mouseButtons_prev`
+2. 保存上一帧按键状态到 `_keys_prev`，鼠标状态到 `_mouseButtons_prev`，并将 `_mouseWheelDelta` 清零
 3. 派发 Windows 消息（PeekMessage 循环）
 4. 更新 deltaTime 和 FPS（每秒统计一次）
 5. FPS 更新时调用 `_UpdateTitleFps()` 更新标题栏显示
 
 #### `void WaitFrame(int fps)`
-- 帧率控制，计算距离上次 Update 的耗时，不足则 `Sleep`
+- 帧率控制，计算距离上次 `Update()` 的耗时；不足时优先等待多媒体定时器事件，不可用时回退 `Sleep(1)`
 - fps <= 0 时默认按 60 处理
 
 #### `float GetDeltaTime() const`
@@ -441,7 +449,8 @@ static bool _srandDone; // srand 是否已初始化
 
 #### `void DrawSprite(int id, int x, int y)`
 - 绘制精灵到帧缓冲（委托给 `DrawSpriteEx(id, x, y, 0)`）
-- **Alpha > 0 的像素才绘制**（简单透明判定，非混合）
+- 默认调用 `DrawSpriteEx(id, x, y, 0)`；在最常见的无翻转路径下会直接按行拷贝像素，不检查 Color Key，也不做逐像素 Alpha 混合
+- 如果素材依赖透明孔洞，请改用 `DrawSpriteEx(..., SPRITE_ALPHA)` 或 `DrawSpriteEx(..., SPRITE_COLORKEY)`
 
 #### `void DrawSpriteEx(int id, int x, int y, int flags)`
 - 带标志的精灵绘制
@@ -450,6 +459,7 @@ static bool _srandDone; // srand 是否已初始化
 - `SPRITE_COLORKEY`: 与该精灵当前 Color Key 完全匹配的像素跳过（默认值为 `COLORKEY_DEFAULT`，即品红 `0xFFFF00FF`）
 - `SPRITE_ALPHA`: 启用逐像素 Alpha 混合（alpha=0 跳过，alpha=255 直接覆盖，0<alpha<255 按比例混合）
 - 标志可组合使用，如 `SPRITE_FLIP_H | SPRITE_ALPHA`
+- 未启用 `SPRITE_ALPHA` / `SPRITE_COLORKEY` 时，会按 flags 允许的最快路径处理；无翻转时优先逐行 `memcpy`，带翻转时仍会走逐像素路径并跳过 alpha=0 的像素
 - 整张绘制和区域绘制走非缩放快路径；缩放绘制走独立最近邻采样路径，但翻转、ColorKey、Alpha 语义保持一致
 
 #### `void DrawSpriteRegion(int id, int x, int y, int sx, int sy, int sw, int sh)`
@@ -628,10 +638,11 @@ static bool _srandDone; // srand 是否已初始化
 - 绘制瓦片地图到帧缓冲
 - `(x, y)`：地图左上角在屏幕上的位置（卷轴时传 `-cameraX, -cameraY`）
 - `flags`：绘制模式，与 `DrawSpriteEx` 一致：
-  - `0`（默认）— 不透明模式（跳过 alpha=0 的像素）
+  - `0`（默认）— 不透明快路径，不检查 tileset 像素 alpha，适合不透明瓦片图集
   - `SPRITE_COLORKEY` — 跳过 tileset 当前 Color Key 对应的像素
   - `SPRITE_ALPHA` — 逐像素 Alpha 混合
   - `SPRITE_ALPHA | SPRITE_COLORKEY` — 可组合使用
+- 如果瓦片图集依赖透明孔洞，应传入 `SPRITE_COLORKEY` 或 `SPRITE_ALPHA`
 - **性能优化**：只绘制屏幕可见范围内的瓦片（自动计算可见列/行范围），不遍历整张地图
 - 每个瓦片做像素级边缘裁剪，处理屏幕边界的半瓦片
 - 无 `SPRITE_ALPHA` / `SPRITE_COLORKEY` 时逐行 `memcpy`；其他情况复用 `_DrawSpriteAreaFast`
@@ -669,7 +680,16 @@ static bool _srandDone; // srand 是否已初始化
 | `void _DrawHLine(int x1, int x2, int y, uint32_t c)` | 带裁剪的水平线（DrawRect/FillCircle/FillTriangle 内部用） |
 | `void _UpdateTitleFps()` | 当 `_showFps=true` 时更新标题栏 FPS 显示（在 FPS 统计更新时调用） |
 | `int _AllocSpriteSlot()` | 在 `_sprites` 向量中找空闲槽位或追加新槽位 |
+| `void _DrawSpriteAreaFast(...)` | 非缩放精灵/区域绘制快路径；按 flags 决定是否做逐行 `memcpy`、Color Key 或 Alpha 处理 |
+| `void _DrawSpriteAreaScaled(...)` | 缩放绘制路径，使用最近邻采样并保持翻转、Color Key、Alpha 语义 |
 | `int _AllocTilemapSlot()` | 在 `_tilemaps` 向量中找空闲槽位或追加新槽位 |
+| `static int _gamelib_floor_div(int value, int divisor)` | 向下取整整数除法，供负坐标的 Tilemap 像素到瓦片坐标换算使用 |
+| `static wchar_t* _gamelib_utf8_to_wide(...)` | 将 UTF-8 字符串转换为宽字符，供窗口标题、字体和资源路径共用 |
+| `static FILE* _gamelib_fopen_utf8(...)` | 用宽字符路径打开文件，统一图片资源的 UTF-8 文件名语义 |
+| `static bool _gamelib_mci_path_is_safe(...)` | 检查音乐路径是否包含引号或换行，避免 MCI 命令拼接注入 |
+| `static void _gamelib_close_music_alias()` | 停止并关闭固定别名 `gamelib_music` 对应的 MCI 资源 |
+| `static HFONT _gamelib_create_font_utf8(...)` | 用 UTF-8 字体名创建 GDI 字体对象 |
+| `static void _gamelib_measure_font_text(...)` | 基于 `GetTextExtentPoint32W` 计算多行字体文字的像素宽高 |
 | `static int _gamelib_gdiplus_init()` | 懒加载 `gdiplus.dll` 和 `ole32.dll`，解析函数地址并调用 `GdiplusStartup`（仅首次执行） |
 | `static void _gamelib_com_release(void *obj)` | 通过 COM vtable 手动调用 `IUnknown::Release`（无需 ObjBase.h） |
 | `static uint32_t* _gamelib_gdiplus_load(...)` | 从内存数据通过 GDI+ 解码图片，返回 32bppARGB 像素数组 |
@@ -723,7 +743,7 @@ int main() {
 1. **C-style 强制转换** — cppcheck 会报 style 警告，但对目标用户群体来说可以接受
 2. **PlayBeep 是阻塞的** — 会暂停游戏循环
 3. **单窗口** — 窗口类名固定为 "GameLibWindowClass"，同时只能有一个 GameLib 实例正常工作
-4. **WaitFrame 精度** — 依赖 `Sleep`，在低 fps 目标下足够，高精度场景可能不够
+4. **WaitFrame 精度** — 优先依赖多媒体定时器事件，失败时回退 `Sleep(1)`；对教学和常规小游戏足够，但不是硬实时计时器
 5. **MCI 音乐单通道** — 同时只能播放一首背景音乐（固定别名 `gamelib_music`）
 
 ### 未来改进方向
@@ -734,7 +754,7 @@ int main() {
 4. **音频增强** — 多通道音效、音量控制
 5. **示例游戏 Demo** — 编写打砖块、太空射击等示例
 
-更细的接口演进建议见：`docs/GameLib-v1.1-Proposal.md`
+1.1 提案中的接口项已经全部并入当前 `GameLib.h` 与本文档，后续演进直接在这里继续维护。
 
 ---
 
@@ -752,8 +772,10 @@ int main() {
 | 资源文件路径统一按 UTF-8 解释 | `LoadSprite*` / `PlayWAV` / `PlayMusic` 内部转宽字符，避免中文目录和文件名失效 |
 | 键盘重复过滤（bit 30） | 避免按住一个键产生大量 KeyDown 事件 |
 | FPS 每秒统计一次 | 平滑显示，避免帧间波动 |
+| `WaitFrame` 优先使用多媒体定时器事件 | 比纯 `Sleep(1)` 更稳定；若 `timeSetEvent` 不可用再回退 `Sleep(1)` |
 | Color Key 用品红 (0xFFFF00FF) 而非黑色 | 黑色难以制作和判断，品红是 2D 资源常用透明色 |
 | `COLORKEY_DEFAULT` 用 `#ifndef` 保护 | 允许用户在 include 前自定义覆盖 |
+| 每个精灵独立保存 Color Key | 不同素材可使用不同透明色，同时保留 `COLORKEY_DEFAULT` 作为初始值 |
 | PlayMusic 用 MCI 而非 PlaySound | MCI 支持 MP3，且与 PlaySound 独立通道，可同时播放音乐和音效 |
 | MCI 先尝试 mpegvideo 再自动检测 | mpegvideo 是 MP3 最可靠的类型，回退保证兼容其他格式 |
 | GDI+ 通过 LoadLibrary 动态加载 | 避免编译时链接 `-lgdiplus -lole32`，保持只需 `-mwindows` |
@@ -765,6 +787,7 @@ int main() {
 | GDI+ 加载后检测全零 alpha 并修正为 255 | 24 位图片（BMP/JPG 等无 alpha 通道）经 GDI+ 转 32bppARGB 后 alpha 可能为 0，导致绘制时被当作透明跳过 |
 | Alpha 混合用 `SPRITE_ALPHA` 标志显式启用 | 默认不混合（性能优先），需要混合时通过 `DrawSpriteEx` 传入标志，避免不必要的每像素计算 |
 | 精灵绘制拆分为非缩放快路径和缩放路径 | 常见 `DrawSprite` / `DrawSpriteRegion` 走整数步进快路径；真正缩放时才做最近邻采样 |
+| 无翻转的默认 sprite/tilemap 快路径不检查源像素透明洞 | 常见不透明绘制可直接逐行拷贝；需要透明语义时显式传 `SPRITE_ALPHA` / `SPRITE_COLORKEY` |
 | mmsystem 类型和常量自行声明 | 不再 `#include <mmsystem.h>`，减少头文件依赖，避免与 `WIN32_LEAN_AND_MEAN` 冲突 |
 | `unsigned int` 替代 `UINT32` | GCC 4.9.2 的 MinGW 头文件可能未定义 `UINT32` |
 | Tilemap tiles 用 `int*`（malloc 分配）管理 | 与精灵像素内存管理风格一致，析构时自动释放 |

@@ -18,8 +18,7 @@
 
 ```
 - docs/Manual.md              # GameLib.h 的接口说明，做游戏和改库都要先读
-- docs/GameLib.md              # GameLib.h 的技术规格和设计思路
-- docs/GameLib-v1.1-Proposal.md # v1.1 接口演进草案，迭代 GameLib.h 时参考
+- docs/GameLib.md             # GameLib.h 的技术规格、设计思路和已合并的 1.1 演进说明
 ```
 
 ## Assets
@@ -71,6 +70,6 @@ g++ -o output.exe source.cpp -mwindows
 ### 迭代 GameLib.h
 
 - 先完整阅读 GameLib.h 源码，理解内部架构（动态加载层、GDI 双缓冲、精灵管理、Tilemap 等模块）。
-- 阅读 docs/GameLib.md 了解设计思路，阅读 docs/GameLib-v1.1-Proposal.md 了解演进方向。
+- 阅读 docs/GameLib.md，了解当前设计思路、技术约束和已合并的接口演进。
 - 修改后必须遵守 Code Constraints 中的所有约束。
 - 修改后用 examples/ 下的示例进行回归验证，确保编译通过且功能正常。

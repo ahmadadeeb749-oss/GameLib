@@ -37,23 +37,17 @@ int main()
 }
 ```
 
-编译：
-
-```bash
-g++ main.cpp -o game.exe
-```
-
-没了。不需要配置项目，不需要下载 SDK，不用改 IDE 设置，不需要链接一堆库。运行一下，可以用方向键操控小球：
-
-![](https://skywind3000.github.io/images/p/gamelib/demo1.png)
-
-编译参数可以选择性加一个 `-mwindows` （也可以不加）：
+编译（推荐）：
 
 ```bash
 g++ main.cpp -o game.exe -mwindows
 ```
 
-这样启动就没有黑色终端窗口，和标准 Windows 程序一样，这个在 Dev-Cpp 里新建 Windows Application 项目时也会自动帮你加上。
+没了。不需要配置项目，不需要下载 SDK，不用改 IDE 设置，也不需要再手写 `-lgdi32 -lwinmm -lgdiplus -lole32` 之类的链接参数。运行一下，可以用方向键操控小球：
+
+![](https://skywind3000.github.io/images/p/gamelib/demo1.png)
+
+这里使用 `-mwindows` 是为了按标准 Windows 窗口程序方式启动，不弹出黑色控制台；在 Dev-Cpp 里新建 Windows Application 项目时通常也会自动加上它。
 
 
 
@@ -76,14 +70,16 @@ g++ main.cpp -o game.exe -mwindows
 
 - 单个头文件 `GameLib.h`，拷贝即用
 - 不依赖 SDL / SFML / DirectX / OpenGL
-- 编译参数都不需要加（全动态加载），可选择性添加 `-mwindows` 参数
+- 不需要再写 `-lgdi32 -lwinmm -lgdiplus -lole32` 等链接参数，推荐使用 `-mwindows`
 - 兼容 Dev C++ 自带的 GCC 4.9.2
 
 ### 开箱即用的绘图
 
 - 画点、线、矩形、圆、三角形（描边和填充）
 - 内嵌 8x8 像素点阵字体，支持所有可打印 ASCII 字符
+- `DrawTextFont` 支持可缩放字体和 UTF-8 文本输出
 - `DrawPrintf` 像 `printf` 一样在屏幕上格式化输出
+- `ShowFps(true)` 可直接在标题栏显示实时 FPS
 - 所有图形算法自行实现（Bresenham 直线、中点圆、扫描线填充）
 
 ### 精灵系统
@@ -98,13 +94,16 @@ g++ main.cpp -o game.exe -mwindows
 
 - `IsKeyDown` — 按住检测
 - `IsKeyPressed` — 单次按下检测（按下瞬间触发一次）
-- 鼠标位置和三键状态
+- `IsKeyReleased` / `IsMouseReleased` — 单次松开检测
+- 鼠标位置、三键状态和滚轮增量
+- `IsActive()` 可判断窗口是否失焦，方便暂停游戏
 - 预定义所有常用按键常量：`KEY_A`\~`KEY_Z`、方向键、F1\~F12
 
 ### 声音
 
-- `PlayWAV` — 播放音效（WAV 格式，异步）
-- `PlayMusic` / `StopMusic` — 播放背景音乐（MP3/MIDI，基于 MCI）
+- `PlayWAV` — 播放音效（WAV 格式，异步，返回是否成功启动）
+- `PlayMusic` / `StopMusic` — 播放背景音乐（MP3/MIDI/WAV 等，基于 MCI）
+- `IsMusicPlaying()` — 查询库当前记录的背景音乐状态
 - 音效和音乐独立通道，互不干扰
 
 ### 游戏工具
@@ -304,7 +303,7 @@ int main()
 
 ## 示例程序
 
-`examples/` 目录包含 14 个由浅入深的示例，逐步展示 GameLib 的各项功能。前 7 个纯代码绘图，复制即可编译运行；后 7 个涉及精灵、音效、Tilemap 等功能。
+`examples/` 目录包含 16 个由浅入深的示例，逐步展示 GameLib 的各项功能，覆盖窗口、图形、输入、精灵、声音、Tilemap 和字体文字。
 
 编译任意示例：
 
@@ -351,6 +350,13 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 |-|-|-|
 | `14_tilemap.cpp` | 双层卷轴 | FillTileRect/ClearTilemap、像素转瓦片、视差滚动 |
 
+### 字体与补充演示
+
+| 示例 | 说明 | 学到什么 |
+|-|-|-|
+| `15_font_text.cpp` | 可缩放字体 | DrawTextFont、中文文字输出、不同字号 |
+| `16_playsound.cpp` | 简单音效播放 | PlayWAV、按键触发音效 |
+
 
 
 
@@ -369,6 +375,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 | `GetFPS()` | 当前帧率 |
 | `GetTime()` | 运行总时间（秒） |
 | `SetTitle(title)` | 修改窗口标题 |
+| `ShowFps(show)` | 是否在标题栏显示实时 FPS |
 
 ### 绘图
 
@@ -402,7 +409,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 | 函数 | 说明 |
 |-|-|
 | `CreateSprite(w, h)` | 创建空白精灵，返回 ID |
-| `LoadSprite(filename)` | 加载图片精灵（PNG/JPG/BMP/GIF，路径按 UTF-8） |
+| `LoadSprite(filename)` | 加载图片精灵（PNG/JPG/BMP/GIF/TIFF，路径按 UTF-8） |
 | `LoadSpriteBMP(filename)` | 从 BMP 加载精灵（8/24/32-bit，路径按 UTF-8） |
 | `FreeSprite(id)` | 释放精灵 |
 | `DrawSprite(id, x, y)` | 绘制精灵 |
@@ -418,6 +425,8 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 | `GetSpriteColorKey(id)` | 读取该精灵的 Color Key |
 
 精灵标志：`SPRITE_FLIP_H`（水平翻转）、`SPRITE_FLIP_V`（垂直翻转）、`SPRITE_COLORKEY`（按该精灵当前 Color Key 透明，默认品红色）、`SPRITE_ALPHA`（Alpha 混合）
+
+默认的 `DrawSprite(id, x, y)` 走不透明快路径；如果素材依赖透明孔洞，请显式传 `SPRITE_COLORKEY` 或 `SPRITE_ALPHA`。
 
 ### 输入
 
@@ -439,7 +448,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 |-|-|
 | `PlayWAV(filename, loop)` | 播放音效，成功返回 `true` |
 | `StopWAV()` | 停止音效 |
-| `PlayMusic(filename, loop)` | 播放背景音乐（MP3/MIDI），成功返回 `true` |
+| `PlayMusic(filename, loop)` | 播放背景音乐（MP3/MIDI/WAV 等），成功返回 `true` |
 | `StopMusic()` | 停止背景音乐 |
 | `IsMusicPlaying()` | 当前音乐是否处于播放状态 |
 | `PlayBeep(freq, duration)` | 蜂鸣器 |
@@ -469,10 +478,10 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 | `WorldToTileCol(mapId, x)` / `WorldToTileRow(mapId, y)` | 像素坐标转瓦片坐标 |
 | `GetTileAtPixel(mapId, x, y)` | 按像素位置读取瓦片 |
 | `FillTileRect(mapId, col, row, cols, rows, tileId)` | 批量填充矩形区域 |
-| `ClearTilemap(mapId, tileId)` | 用指定瓦片清空整张地图 |
+| `ClearTilemap(mapId, tileId)` | 用指定瓦片填满整张地图（默认 `-1` 为清空） |
 | `DrawTilemap(mapId, x, y, flags)` | 绘制地图（支持 ColorKey/Alpha） |
 
-tileset 是一张普通精灵（`LoadSprite` / `CreateSprite`），按 `tileSize` 自动切分。`WorldToTileCol/Row` 对负坐标也按向下取整换算。`DrawTilemap` 只绘制屏幕可见瓦片，传 `(-cameraX, -cameraY)` 即可实现卷轴。
+tileset 是一张普通精灵（`LoadSprite` / `CreateSprite`），按 `tileSize` 自动切分。`WorldToTileCol/Row` 对负坐标也按向下取整换算。`DrawTilemap` 默认走不透明快路径，只绘制屏幕可见瓦片；传 `(-cameraX, -cameraY)` 即可实现卷轴，如需透明孔洞请显式传 `SPRITE_COLORKEY` 或 `SPRITE_ALPHA`。
 
 ### 颜色常量
 
@@ -507,8 +516,9 @@ COLOR_BROWN    COLOR_GOLD      COLOR_TRANSPARENT
 
 ## 技术细节
 
-- **双缓冲**：所有绘制写入内存帧缓冲（`uint32_t*` ARGB），`Update()` 时通过 `SetDIBitsToDevice` 一次性刷新到窗口，无闪烁
-- **图形自实现**：不调用任何 GDI 绘图函数（`LineTo`、`Ellipse` 等），所有算法从零实现。唯一使用的 GDI 调用是 `SetDIBitsToDevice`
+- **双缓冲**：所有绘制写入内存帧缓冲（`uint32_t*` ARGB），`Update()` 时通过 DIB Section + `BitBlt` 刷新到窗口，无闪烁
+- **图形自实现**：不调用 `LineTo`、`Ellipse` 等 GDI 图元函数，线段、圆和三角形算法都由库内实现
+- **字体后端**：可缩放字体文字当前通过 GDI 的 `CreateFontW` / `TextOutW` / `GetTextExtentPoint32W` 实现
 - **精确窗口尺寸**：`Open()` 保证客户区严格等于请求的宽高（含高 DPI 二次校正）
 - **stb 风格单头文件**：默认 include 即启用实现；多文件项目可用 `GAMELIB_NO_IMPLEMENTATION` 控制
 

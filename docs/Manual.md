@@ -13,6 +13,7 @@
 | `GetFPS()`                   | 当前帧率                     |
 | `GetTime()`                  | 运行总时间（秒）             |
 | `SetTitle(title)`            | 修改窗口标题                 |
+| `ShowFps(show)`              | 是否在标题栏显示实时 FPS     |
 
 ### 绘图
 
@@ -46,7 +47,7 @@
 | 函数                                         | 说明                            |
 | -------------------------------------------- | ------------------------------- |
 | `CreateSprite(w, h)`                         | 创建空白精灵，返回 ID           |
-| `LoadSprite(filename)`                       | 加载图片精灵（PNG/JPG/BMP/GIF，路径按 UTF-8） |
+| `LoadSprite(filename)`                       | 加载图片精灵（PNG/JPG/BMP/GIF/TIFF，路径按 UTF-8） |
 | `LoadSpriteBMP(filename)`                    | 从 BMP 加载精灵（8/24/32-bit，路径按 UTF-8）  |
 | `FreeSprite(id)`                             | 释放精灵                        |
 | `DrawSprite(id, x, y)`                       | 绘制精灵                        |
@@ -62,6 +63,8 @@
 | `GetSpriteColorKey(id)`                      | 读取该精灵的 Color Key          |
 
 精灵标志：`SPRITE_FLIP_H`（水平翻转）、`SPRITE_FLIP_V`（垂直翻转）、`SPRITE_COLORKEY`（按该精灵当前 Color Key 透明，默认品红色）、`SPRITE_ALPHA`（Alpha 混合）
+
+默认的 `DrawSprite(id, x, y)` 走不透明快路径；如果素材依赖透明孔洞，请显式传 `SPRITE_COLORKEY` 或 `SPRITE_ALPHA`。
 
 ### 输入
 
@@ -83,7 +86,7 @@
 | --------------------------- | ------------------------ |
 | `PlayWAV(filename, loop)`   | 播放音效，成功返回 `true` |
 | `StopWAV()`                 | 停止音效                 |
-| `PlayMusic(filename, loop)` | 播放背景音乐（MP3/MIDI），成功返回 `true` |
+| `PlayMusic(filename, loop)` | 播放背景音乐（MP3/MIDI/WAV 等），成功返回 `true` |
 | `StopMusic()`               | 停止背景音乐             |
 | `IsMusicPlaying()`          | 当前音乐是否处于播放状态 |
 | `PlayBeep(freq, duration)`  | 蜂鸣器                   |
@@ -113,10 +116,10 @@
 | `WorldToTileCol(mapId, x)` / `WorldToTileRow(mapId, y)` | 像素坐标转瓦片坐标      |
 | `GetTileAtPixel(mapId, x, y)`                    | 按像素位置读取瓦片              |
 | `FillTileRect(mapId, col, row, cols, rows, tileId)` | 批量填充矩形区域           |
-| `ClearTilemap(mapId, tileId)`                    | 用指定瓦片清空整张地图          |
+| `ClearTilemap(mapId, tileId)`                    | 用指定瓦片填满整张地图（默认 `-1` 为清空） |
 | `DrawTilemap(mapId, x, y, flags)`                | 绘制地图（支持 ColorKey/Alpha） |
 
-tileset 是一张普通精灵（`LoadSprite` / `CreateSprite`），按 `tileSize` 自动切分。`WorldToTileCol/Row` 对负坐标也按向下取整换算。`DrawTilemap` 只绘制屏幕可见瓦片，传 `(-cameraX, -cameraY)` 即可实现卷轴。
+tileset 是一张普通精灵（`LoadSprite` / `CreateSprite`），按 `tileSize` 自动切分。`WorldToTileCol/Row` 对负坐标也按向下取整换算。`DrawTilemap` 默认走不透明快路径，只绘制屏幕可见瓦片；传 `(-cameraX, -cameraY)` 即可实现卷轴，如需透明孔洞请显式传 `SPRITE_COLORKEY` 或 `SPRITE_ALPHA`。
 
 ### 颜色常量
 
