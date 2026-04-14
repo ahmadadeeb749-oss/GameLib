@@ -602,6 +602,23 @@ static bool _srandDone; // srand 是否已初始化
 - 自动计算 `tilesetCols = spriteWidth / tileSize`
 - 所有格子初始化为 -1（空，不绘制）
 
+#### `bool SaveTilemap(const char *filename, int mapId) const`
+- 将地图保存为纯文本 `.glm` 文件，成功返回 `true`
+- 第一行固定写 `GLM1`
+- 第二行写 `tileSize rows cols`
+- 后续每行写一整行瓦片 ID，列之间用单个空格分隔
+- 只保存地图尺寸和瓦片数据，不保存 tileset 路径或其他资源元数据
+
+#### `int LoadTilemap(const char *filename, int tilesetId)`
+- 从纯文本 `.glm` 文件创建地图，成功返回新地图 ID，失败返回 `-1`
+- 文件第一行必须是 `GLM1`（允许 UTF-8 BOM）
+- 第二行按 `tileSize rows cols` 解析
+- 数据区按行读取，空格或 Tab 都可作为分隔符
+- 某一行超过 `cols` 的数据会忽略，不足 `cols` 的剩余格子保留为 `-1`
+- 文件超过 `rows` 的多余数据行会忽略；若不足 `rows` 行，缺失行保留为 `-1`
+- 不从文件中读取 tileset 信息，调用者必须显式提供 `tilesetId`
+- 在读到非整数 token 等非法内容时返回 `-1`，不会保留半成品地图
+
 #### `void FreeTilemap(int mapId)`
 - 释放地图的 tiles 数组内存，标记槽位为未使用
 - 不释放 tileset 精灵（由用户通过 `FreeSprite` 管理）
@@ -691,6 +708,9 @@ static bool _srandDone; // srand 是否已初始化
 | `static int _gamelib_floor_div(int value, int divisor)` | 向下取整整数除法，供负坐标的 Tilemap 像素到瓦片坐标换算使用 |
 | `static wchar_t* _gamelib_utf8_to_wide(...)` | 将 UTF-8 字符串转换为宽字符，供窗口标题、字体和资源路径共用 |
 | `static FILE* _gamelib_fopen_utf8(...)` | 用宽字符路径打开文件，统一图片资源的 UTF-8 文件名语义 |
+| `static bool _gamelib_read_text_line(FILE*, std::string&)` | 逐行读取 `.glm` 文本数据，兼容最后一行没有换行符的情况 |
+| `static void _gamelib_strip_utf8_bom(std::string&)` | 移除 `.glm` 首行可能存在的 UTF-8 BOM |
+| `static bool _gamelib_parse_int_tokens(...)` | 按空格/Tab 解析整数 token，供 `.glm` 头部和瓦片行共用 |
 | `static bool _gamelib_mci_path_is_safe(...)` | 检查音乐路径是否包含引号或换行，避免 MCI 命令拼接注入 |
 | `static void _gamelib_close_music_alias()` | 停止并关闭固定别名 `gamelib_music` 对应的 MCI 资源 |
 | `static HFONT _gamelib_create_font_utf8(...)` | 用 UTF-8 字体名创建 GDI 字体对象 |

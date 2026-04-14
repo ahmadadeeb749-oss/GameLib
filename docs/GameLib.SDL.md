@@ -339,7 +339,7 @@ GameLib.SDL.h
 - `PlayBeep` / `PlayWAV` / `StopWAV` / `PlayMusic` / `StopMusic` / `IsMusicPlaying`
 - `Random` / `RectOverlap` / `CircleOverlap` / `PointInRect` / `Distance`
 - `DrawGrid` / `FillCell`
-- `CreateTilemap` / `FreeTilemap` / `SetTile` / `GetTile` / `GetTilemapCols` / `GetTilemapRows`
+- `CreateTilemap` / `SaveTilemap` / `LoadTilemap` / `FreeTilemap` / `SetTile` / `GetTile` / `GetTilemapCols` / `GetTilemapRows`
 - `GetTileSize` / `WorldToTileCol` / `WorldToTileRow` / `GetTileAtPixel`
 - `FillTileRect` / `ClearTilemap` / `DrawTilemap`
 
@@ -876,12 +876,12 @@ static bool _srandDone;
 - `LoadSpriteBMP`
 - `LoadSprite`
 - `DrawSprite*`
-- `CreateTilemap` / `DrawTilemap`
+- `CreateTilemap` / `SaveTilemap` / `LoadTilemap` / `DrawTilemap`
 
 目标：
 
 - 让 sprite demo、animation、tilemap 类示例可迁移。
-- 当前状态：已完成，`CreateSprite`、`LoadSpriteBMP`、`LoadSprite`、`DrawSprite*`、`CreateTilemap` / `DrawTilemap` 已落地，并由 `tests/sdldemo1.cpp` 覆盖基础回归。
+- 当前状态：已完成，`CreateSprite`、`LoadSpriteBMP`、`LoadSprite`、`DrawSprite*`、`CreateTilemap` / `SaveTilemap` / `LoadTilemap` / `DrawTilemap` 已落地，并由 `tests/sdldemo1.cpp` 覆盖基础回归。
 
 ### 阶段 3：字体与音频（已完成）
 

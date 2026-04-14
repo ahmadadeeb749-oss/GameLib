@@ -71,6 +71,7 @@
 #include <windows.h>
 
 #include <stdint.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -387,6 +388,8 @@ public:
 
     // -------- Tilemap System --------
     int CreateTilemap(int cols, int rows, int tileSize, int tilesetId);
+    bool SaveTilemap(const char *filename, int mapId) const;
+    int LoadTilemap(const char *filename, int tilesetId);
     void FreeTilemap(int mapId);
     void SetTile(int mapId, int col, int row, int tileId);
     int GetTile(int mapId, int col, int row) const;
@@ -1788,6 +1791,58 @@ static bool _gamelib_mci_path_is_safe(const char *filename)
     return true;
 }
 
+static bool _gamelib_read_text_line(FILE *fp, std::string &line)
+{
+    line.clear();
+    if (!fp) return false;
+
+    int ch = 0;
+    while ((ch = fgetc(fp)) != EOF) {
+        if (ch == '\n') break;
+        line.push_back((char)ch);
+    }
+
+    if (ch == EOF && line.empty()) return false;
+    if (!line.empty() && line[line.size() - 1] == '\r') line.resize(line.size() - 1);
+    return true;
+}
+
+static void _gamelib_strip_utf8_bom(std::string &line)
+{
+    if (line.size() >= 3 &&
+        (unsigned char)line[0] == 0xEF &&
+        (unsigned char)line[1] == 0xBB &&
+        (unsigned char)line[2] == 0xBF) {
+        line.erase(0, 3);
+    }
+}
+
+static bool _gamelib_parse_int_tokens(const std::string &line, int *values, int maxCount, int *outCount)
+{
+    if (outCount) *outCount = 0;
+    if (maxCount < 0) return false;
+
+    const char *cursor = line.c_str();
+    int count = 0;
+    while (*cursor) {
+        while (*cursor == ' ' || *cursor == '\t') cursor++;
+        if (!*cursor) break;
+        if (count >= maxCount) break;
+
+        char *endPtr = NULL;
+        long value = strtol(cursor, &endPtr, 10);
+        if (endPtr == cursor) return false;
+        if (value < (long)INT_MIN || value > (long)INT_MAX) return false;
+        if (*endPtr && *endPtr != ' ' && *endPtr != '\t') return false;
+
+        values[count++] = (int)value;
+        cursor = endPtr;
+    }
+
+    if (outCount) *outCount = count;
+    return true;
+}
+
 static void _gamelib_close_music_alias()
 {
     if (!_gl_mciSendStringW) return;
@@ -2735,6 +2790,96 @@ int GameLib::CreateTilemap(int cols, int rows, int tileSize, int tilesetId)
     _tilemaps[id].used = true;
 
     return id;
+}
+
+bool GameLib::SaveTilemap(const char *filename, int mapId) const
+{
+    if (!filename) return false;
+    if (mapId < 0 || mapId >= (int)_tilemaps.size()) return false;
+    if (!_tilemaps[mapId].used) return false;
+
+    const GameTilemap &tm = _tilemaps[mapId];
+    FILE *fp = _gamelib_fopen_utf8(filename, L"wb");
+    if (!fp) return false;
+
+    if (fprintf(fp, "GLM1\n%d %d %d\n", tm.tileSize, tm.rows, tm.cols) < 0) {
+        fclose(fp);
+        return false;
+    }
+
+    for (int row = 0; row < tm.rows; row++) {
+        for (int col = 0; col < tm.cols; col++) {
+            if (col > 0 && fputc(' ', fp) == EOF) {
+                fclose(fp);
+                return false;
+            }
+            if (fprintf(fp, "%d", tm.tiles[row * tm.cols + col]) < 0) {
+                fclose(fp);
+                return false;
+            }
+        }
+        if (fputc('\n', fp) == EOF) {
+            fclose(fp);
+            return false;
+        }
+    }
+
+    return fclose(fp) == 0;
+}
+
+int GameLib::LoadTilemap(const char *filename, int tilesetId)
+{
+    if (!filename) return -1;
+
+    FILE *fp = _gamelib_fopen_utf8(filename, L"rb");
+    if (!fp) return -1;
+
+    std::string line;
+    if (!_gamelib_read_text_line(fp, line)) {
+        fclose(fp);
+        return -1;
+    }
+    _gamelib_strip_utf8_bom(line);
+    if (line != "GLM1") {
+        fclose(fp);
+        return -1;
+    }
+
+    if (!_gamelib_read_text_line(fp, line)) {
+        fclose(fp);
+        return -1;
+    }
+
+    int header[3];
+    int headerCount = 0;
+    if (!_gamelib_parse_int_tokens(line, header, 3, &headerCount) || headerCount < 3) {
+        fclose(fp);
+        return -1;
+    }
+
+    int tileSize = header[0];
+    int rows = header[1];
+    int cols = header[2];
+    int mapId = CreateTilemap(cols, rows, tileSize, tilesetId);
+    if (mapId < 0) {
+        fclose(fp);
+        return -1;
+    }
+
+    for (int row = 0; row < rows; row++) {
+        if (!_gamelib_read_text_line(fp, line)) break;
+
+        int count = 0;
+        int *rowPtr = _tilemaps[mapId].tiles + row * cols;
+        if (!_gamelib_parse_int_tokens(line, rowPtr, cols, &count)) {
+            FreeTilemap(mapId);
+            fclose(fp);
+            return -1;
+        }
+    }
+
+    fclose(fp);
+    return mapId;
 }
 
 void GameLib::FreeTilemap(int mapId)

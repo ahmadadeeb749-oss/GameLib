@@ -7,7 +7,7 @@
 ```
 - assets/    # images and audios
 - docs/      # documentations
-- examples/  # examples (01~17 渐进式示例，可作为参考和回归测试)
+- examples/  # examples (01~18 渐进式示例，可作为参考和回归测试)
 - tests/     # tests
 - GameLib.h  # main source (Win32 主线，单头文件，所有实现都在这一个文件里)
 - GameLib.SDL.h # independent SDL product line (跨平台 SDL 版单头文件)

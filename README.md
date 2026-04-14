@@ -126,6 +126,7 @@ g++ main.cpp -o game.exe -mwindows
 ### Tilemap 系统
 
 - `CreateTilemap` — 用 tileset 精灵创建瓦片地图
+- `SaveTilemap` / `LoadTilemap` — 保存或载入纯文本 `.glm` 地图数据
 - `SetTile` / `GetTile` / `FillTileRect` / `ClearTilemap` — 单点和批量设置瓦片
 - `GetTilemapCols` / `GetTilemapRows` / `GetTileSize` — 读取地图元数据
 - `WorldToTileCol` / `WorldToTileRow` / `GetTileAtPixel` — 把像素坐标换算成瓦片坐标
@@ -312,7 +313,7 @@ int main()
 
 ## 示例程序
 
-`examples/` 目录包含 17 个由浅入深的示例，逐步展示 GameLib 的各项功能，覆盖窗口、图形、输入、精灵、声音、Tilemap、字体文字和缩放绘制。
+`examples/` 目录包含 18 个由浅入深的示例，逐步展示 GameLib 的各项功能，覆盖窗口、图形、输入、精灵、声音、Tilemap、字体文字和缩放绘制。
 
 编译任意示例：
 
@@ -358,6 +359,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 | 示例 | 说明 | 学到什么 |
 |-|-|-|
 | `14_tilemap.cpp` | 双层卷轴 | FillTileRect/ClearTilemap、像素转瓦片、视差滚动 |
+| `18_tilemap_file.cpp` | 地图文件读写 | SaveTilemap、LoadTilemap、`.glm` 纯文本格式 |
 
 ### 字体与补充演示
 
@@ -480,6 +482,8 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 | 函数 | 说明 |
 |-|-|
 | `CreateTilemap(cols, rows, tileSize, tilesetId)` | 创建瓦片地图，返回 ID |
+| `SaveTilemap(filename, mapId)` | 保存地图到纯文本 `.glm` 文件 |
+| `LoadTilemap(filename, tilesetId)` | 从纯文本 `.glm` 文件载入地图 |
 | `FreeTilemap(mapId)` | 释放地图 |
 | `SetTile(mapId, col, row, tileId)` | 设置瓦片（-1=空） |
 | `GetTile(mapId, col, row)` | 读取瓦片 |
@@ -491,7 +495,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 | `ClearTilemap(mapId, tileId)` | 用指定瓦片填满整张地图（默认 `-1` 为清空） |
 | `DrawTilemap(mapId, x, y, flags)` | 绘制地图（支持 ColorKey/Alpha） |
 
-tileset 是一张普通精灵（`LoadSprite` / `CreateSprite`），按 `tileSize` 自动切分。`WorldToTileCol/Row` 对负坐标也按向下取整换算。`DrawTilemap` 默认走不透明快路径，只绘制屏幕可见瓦片；传 `(-cameraX, -cameraY)` 即可实现卷轴，如需透明孔洞请显式传 `SPRITE_COLORKEY` 或 `SPRITE_ALPHA`。
+tileset 是一张普通精灵（`LoadSprite` / `CreateSprite`），按 `tileSize` 自动切分。`WorldToTileCol/Row` 对负坐标也按向下取整换算。`DrawTilemap` 默认走不透明快路径，只绘制屏幕可见瓦片；传 `(-cameraX, -cameraY)` 即可实现卷轴，如需透明孔洞请显式传 `SPRITE_COLORKEY` 或 `SPRITE_ALPHA`。`.glm` 是纯文本格式：第一行固定 `GLM1`，第二行是 `tileSize rows cols`，后续每行一行瓦片数据，使用空格或 Tab 分隔。载入时每行超过 `cols` 的数据会忽略，不足的部分补 `-1`；超过 `rows` 的行忽略，不足的行补 `-1`。文件里不记录 tileset 路径，载入时由调用者提供 `tilesetId`。
 
 ### 颜色常量
 

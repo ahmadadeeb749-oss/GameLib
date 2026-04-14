@@ -126,6 +126,7 @@ It's specifically designed for **Dev C++** (the IDE used in many school programm
 ### Tilemap System
 
 - `CreateTilemap` — create tile maps from tileset sprites
+- `SaveTilemap` / `LoadTilemap` — save or load plain-text `.glm` map data
 - `SetTile` / `GetTile` / `FillTileRect` / `ClearTilemap` — set tiles individually or in bulk
 - `GetTilemapCols` / `GetTilemapRows` / `GetTileSize` — read map metadata
 - `WorldToTileCol` / `WorldToTileRow` / `GetTileAtPixel` — convert pixel coordinates to tile coordinates
@@ -312,7 +313,7 @@ More examples in the `examples/` directory.
 
 ## Example Programs
 
-The `examples/` directory contains 17 progressive examples that demonstrate GameLib's features step by step, covering windows, graphics, input, sprites, sound, tilemap, font text, and scaled drawing.
+The `examples/` directory contains 18 progressive examples that demonstrate GameLib's features step by step, covering windows, graphics, input, sprites, sound, tilemap, font text, and scaled drawing.
 
 Compile any example:
 
@@ -358,6 +359,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 | Example | Description | What You'll Learn |
 |-|-|-|
 | `14_tilemap.cpp` | Dual-layer scrolling | FillTileRect/ClearTilemap, pixel-to-tile conversion, parallax scrolling |
+| `18_tilemap_file.cpp` | Tilemap file I/O | SaveTilemap, LoadTilemap, the plain-text `.glm` format |
 
 ### Fonts and Additional Demos
 
@@ -480,6 +482,8 @@ The default `DrawSprite(id, x, y)` uses the opaque fast path. If your assets rel
 | Function | Description |
 |-|-|
 | `CreateTilemap(cols, rows, tileSize, tilesetId)` | Create tile map, returns ID |
+| `SaveTilemap(filename, mapId)` | Save map to a plain-text `.glm` file |
+| `LoadTilemap(filename, tilesetId)` | Load map from a plain-text `.glm` file |
 | `FreeTilemap(mapId)` | Free map |
 | `SetTile(mapId, col, row, tileId)` | Set tile (-1=empty) |
 | `GetTile(mapId, col, row)` | Read tile |
@@ -491,7 +495,7 @@ The default `DrawSprite(id, x, y)` uses the opaque fast path. If your assets rel
 | `ClearTilemap(mapId, tileId)` | Fill entire map with specified tile (default `-1` to clear) |
 | `DrawTilemap(mapId, x, y, flags)` | Draw map (supports ColorKey/Alpha) |
 
-A tileset is a regular sprite (`LoadSprite` / `CreateSprite`), automatically sliced by `tileSize`. `WorldToTileCol/Row` uses floor division even for negative coordinates. `DrawTilemap` defaults to the opaque fast path, drawing only visible tiles; pass `(-cameraX, -cameraY)` for scrolling, and explicitly pass `SPRITE_COLORKEY` or `SPRITE_ALPHA` for transparent holes.
+A tileset is a regular sprite (`LoadSprite` / `CreateSprite`), automatically sliced by `tileSize`. `WorldToTileCol/Row` uses floor division even for negative coordinates. `DrawTilemap` defaults to the opaque fast path, drawing only visible tiles; pass `(-cameraX, -cameraY)` for scrolling, and explicitly pass `SPRITE_COLORKEY` or `SPRITE_ALPHA` for transparent holes. `.glm` is a plain-text format: line 1 is `GLM1`, line 2 is `tileSize rows cols`, and each following line stores one tile row separated by spaces or tabs. When loading, values beyond `cols` on a row are ignored, missing values are filled with `-1`, extra rows beyond `rows` are ignored, and missing rows stay `-1`. The file does not store a tileset path; the caller provides `tilesetId` when loading.
 
 ### Color Constants
 

@@ -54,6 +54,7 @@
 #define GAMELIB_SDL_VERSION_PATCH 0
 
 #include <stdint.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -297,6 +298,8 @@ public:
     void FillCell(int gridX, int gridY, int row, int col, int cellSize, uint32_t color);
 
     int CreateTilemap(int cols, int rows, int tileSize, int tilesetId);
+    bool SaveTilemap(const char *filename, int mapId) const;
+    int LoadTilemap(const char *filename, int tilesetId);
     void FreeTilemap(int mapId);
     void SetTile(int mapId, int col, int row, int tileId);
     int GetTile(int mapId, int col, int row) const;
@@ -571,6 +574,66 @@ static int _gamelib_floor_div(int value, int divisor)
     int r = value % divisor;
     if (r != 0 && ((r > 0) != (divisor > 0))) q--;
     return q;
+}
+
+static bool _gamelib_rw_read_text_line(SDL_RWops *rw, std::string &line)
+{
+    line.clear();
+    if (!rw) return false;
+
+    char ch = 0;
+    while (SDL_RWread(rw, &ch, 1, 1) == 1) {
+        if (ch == '\n') break;
+        line.push_back(ch);
+    }
+
+    if (line.empty() && ch != '\n') return false;
+    if (!line.empty() && line[line.size() - 1] == '\r') line.resize(line.size() - 1);
+    return true;
+}
+
+static void _gamelib_strip_utf8_bom(std::string &line)
+{
+    if (line.size() >= 3 &&
+        (unsigned char)line[0] == 0xEF &&
+        (unsigned char)line[1] == 0xBB &&
+        (unsigned char)line[2] == 0xBF) {
+        line.erase(0, 3);
+    }
+}
+
+static bool _gamelib_parse_int_tokens(const std::string &line, int *values, int maxCount, int *outCount)
+{
+    if (outCount) *outCount = 0;
+    if (maxCount < 0) return false;
+
+    const char *cursor = line.c_str();
+    int count = 0;
+    while (*cursor) {
+        while (*cursor == ' ' || *cursor == '\t') cursor++;
+        if (!*cursor) break;
+        if (count >= maxCount) break;
+
+        char *endPtr = NULL;
+        long value = strtol(cursor, &endPtr, 10);
+        if (endPtr == cursor) return false;
+        if (value < (long)INT_MIN || value > (long)INT_MAX) return false;
+        if (*endPtr && *endPtr != ' ' && *endPtr != '\t') return false;
+
+        values[count++] = (int)value;
+        cursor = endPtr;
+    }
+
+    if (outCount) *outCount = count;
+    return true;
+}
+
+static bool _gamelib_rw_write_text(SDL_RWops *rw, const char *text, size_t len)
+{
+    if (!rw) return false;
+    if (!text) return len == 0;
+    if (len == 0) return true;
+    return SDL_RWwrite(rw, text, 1, len) == len;
 }
 
 static void _gamelib_generate_beep_pcm(std::vector<int16_t> &samples,
@@ -2514,6 +2577,96 @@ int GameLib::CreateTilemap(int cols, int rows, int tileSize, int tilesetId)
     _tilemaps[id].tiles = tiles;
     _tilemaps[id].used = true;
     return id;
+}
+
+bool GameLib::SaveTilemap(const char *filename, int mapId) const
+{
+    if (!filename) return false;
+    if (mapId < 0 || mapId >= (int)_tilemaps.size()) return false;
+    if (!_tilemaps[mapId].used) return false;
+
+    SDL_RWops *rw = SDL_RWFromFile(filename, "wb");
+    if (!rw) return false;
+
+    const GameTilemap &tm = _tilemaps[mapId];
+    char buffer[64];
+    int headerLen = snprintf(buffer, sizeof(buffer), "GLM1\n%d %d %d\n", tm.tileSize, tm.rows, tm.cols);
+    if (headerLen <= 0 || !_gamelib_rw_write_text(rw, buffer, (size_t)headerLen)) {
+        SDL_RWclose(rw);
+        return false;
+    }
+
+    for (int row = 0; row < tm.rows; row++) {
+        std::string line;
+        for (int col = 0; col < tm.cols; col++) {
+            if (col > 0) line.push_back(' ');
+            int valueLen = snprintf(buffer, sizeof(buffer), "%d", tm.tiles[row * tm.cols + col]);
+            if (valueLen <= 0) {
+                SDL_RWclose(rw);
+                return false;
+            }
+            line.append(buffer, (size_t)valueLen);
+        }
+        line.push_back('\n');
+        if (!_gamelib_rw_write_text(rw, line.c_str(), line.size())) {
+            SDL_RWclose(rw);
+            return false;
+        }
+    }
+
+    return SDL_RWclose(rw) == 0;
+}
+
+int GameLib::LoadTilemap(const char *filename, int tilesetId)
+{
+    if (!filename) return -1;
+
+    SDL_RWops *rw = SDL_RWFromFile(filename, "rb");
+    if (!rw) return -1;
+
+    std::string line;
+    if (!_gamelib_rw_read_text_line(rw, line)) {
+        SDL_RWclose(rw);
+        return -1;
+    }
+    _gamelib_strip_utf8_bom(line);
+    if (line != "GLM1") {
+        SDL_RWclose(rw);
+        return -1;
+    }
+
+    int header[3];
+    int headerCount = 0;
+    if (!_gamelib_rw_read_text_line(rw, line) ||
+        !_gamelib_parse_int_tokens(line, header, 3, &headerCount) ||
+        headerCount < 3) {
+        SDL_RWclose(rw);
+        return -1;
+    }
+
+    int tileSize = header[0];
+    int rows = header[1];
+    int cols = header[2];
+    int mapId = CreateTilemap(cols, rows, tileSize, tilesetId);
+    if (mapId < 0) {
+        SDL_RWclose(rw);
+        return -1;
+    }
+
+    for (int row = 0; row < rows; row++) {
+        if (!_gamelib_rw_read_text_line(rw, line)) break;
+
+        int count = 0;
+        int *rowPtr = _tilemaps[mapId].tiles + row * cols;
+        if (!_gamelib_parse_int_tokens(line, rowPtr, cols, &count)) {
+            FreeTilemap(mapId);
+            SDL_RWclose(rw);
+            return -1;
+        }
+    }
+
+    SDL_RWclose(rw);
+    return mapId;
 }
 
 void GameLib::FreeTilemap(int mapId)
