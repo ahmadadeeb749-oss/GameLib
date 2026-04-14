@@ -9,6 +9,23 @@
 
 #include "../GameLib.h"
 
+static const char *ChooseExistingPath(const char *pathA, const char *pathB)
+{
+    FILE *file = fopen(pathA, "rb");
+    if (file != NULL) {
+        fclose(file);
+        return pathA;
+    }
+
+    file = fopen(pathB, "rb");
+    if (file != NULL) {
+        fclose(file);
+        return pathB;
+    }
+
+    return pathA;
+}
+
 int main()
 {
     GameLib game;
@@ -16,6 +33,8 @@ int main()
 
     bool lastWavOk = true;
     bool lastMusicOk = true;
+    const char *wavEffect = ChooseExistingPath("../assets/sound/explosion.wav", "assets/sound/explosion.wav");
+    const char *musicLoop = ChooseExistingPath("../assets/music/battle1.mid", "assets/music/battle1.mid");
 
     // Key note frequencies (C4 to B4)
     int notes[] = {262, 294, 330, 349, 392, 440, 494, 523};
@@ -60,8 +79,7 @@ int main()
         game.FillRect(40, 250, 200, 30, COLOR_GREEN);
         game.DrawText(55, 258, "W - Play WAV", COLOR_BLACK);
         if (game.IsKeyPressed(KEY_W)) {
-            // Try to play WAV file from assets folder
-            lastWavOk = game.PlayWAV("../assets/sound.wav");
+            lastWavOk = game.PlayWAV(wavEffect);
         }
 
         game.FillRect(260, 250, 200, 30, COLOR_RED);
@@ -69,18 +87,18 @@ int main()
         if (game.IsKeyPressed(KEY_S))
             game.StopWAV();
 
-        game.DrawText(40, 290, "(needs ../assets/sound.wav)", COLOR_GRAY);
+        game.DrawText(40, 290, "(uses assets/sound/explosion.wav from the repo)", COLOR_GRAY);
         game.DrawPrintf(40, 305, COLOR_LIGHT_GRAY, "Last WAV start: %s", lastWavOk ? "OK" : "Failed");
 
         // === Section 3: Background Music ===
-        game.DrawText(40, 330, "Background Music (MCI):", COLOR_WHITE);
+        game.DrawText(40, 330, "Background Music (MCI MIDI):", COLOR_WHITE);
 
         bool musicPlaying = game.IsMusicPlaying();
 
         game.FillRect(40, 350, 200, 30, musicPlaying ? COLOR_DARK_GREEN : COLOR_GREEN);
         game.DrawText(55, 358, "M - Play Music", COLOR_BLACK);
         if (game.IsKeyPressed(KEY_M) && !musicPlaying) {
-            lastMusicOk = game.PlayMusic("../assets/music.mp3");
+            lastMusicOk = game.PlayMusic(musicLoop);
             musicPlaying = game.IsMusicPlaying();
         }
 
@@ -90,7 +108,7 @@ int main()
             game.StopMusic();
         }
 
-        game.DrawText(40, 390, "(needs ../assets/music.mp3)", COLOR_GRAY);
+        game.DrawText(40, 390, "(uses assets/music/battle1.mid and routes .mid to MCI sequencer)", COLOR_GRAY);
 
         // Status
         game.DrawPrintf(40, 420, COLOR_LIGHT_GRAY, "Music: %s", game.IsMusicPlaying() ? "Playing" : "Stopped");

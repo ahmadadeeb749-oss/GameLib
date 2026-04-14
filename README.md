@@ -111,7 +111,7 @@ g++ main.cpp -o game.exe -mwindows
 ### 声音
 
 - `PlayWAV` — 播放音效（WAV 格式，异步，返回是否成功启动）
-- `PlayMusic` / `StopMusic` — 播放背景音乐（MP3/MIDI/WAV 等，基于 MCI）
+- `PlayMusic` / `StopMusic` — 播放背景音乐（MP3/MIDI/WAV，按扩展名选择 MCI 类型；MIDI 循环走 notify 重播）
 - `IsMusicPlaying()` — 查询库当前记录的背景音乐状态
 - 音效和音乐独立通道，互不干扰
 
@@ -460,7 +460,7 @@ g++ -o demo.exe examples/01_hello.cpp -mwindows
 |-|-|
 | `PlayWAV(filename, loop)` | 播放音效，成功返回 `true` |
 | `StopWAV()` | 停止音效 |
-| `PlayMusic(filename, loop)` | 播放背景音乐（MP3/MIDI/WAV 等），成功返回 `true` |
+| `PlayMusic(filename, loop)` | 播放背景音乐（MP3/MIDI/WAV；按扩展名选择 MCI 类型，MIDI 循环走 notify 重播），成功返回 `true` |
 | `StopMusic()` | 停止背景音乐 |
 | `IsMusicPlaying()` | 当前音乐是否处于播放状态 |
 | `PlayBeep(freq, duration)` | 蜂鸣器 |

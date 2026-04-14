@@ -111,7 +111,7 @@ It's specifically designed for **Dev C++** (the IDE used in many school programm
 ### Sound
 
 - `PlayWAV` — play sound effects (WAV format, asynchronous, returns success status)
-- `PlayMusic` / `StopMusic` — play background music (MP3/MIDI/WAV, MCI-based)
+- `PlayMusic` / `StopMusic` — play background music (MP3/MIDI/WAV, explicit MCI type by extension; MIDI looping uses notify replay)
 - `IsMusicPlaying()` — query current background music playback status
 - Sound effects and music on independent channels, no interference
 
@@ -460,7 +460,7 @@ The default `DrawSprite(id, x, y)` uses the opaque fast path. If your assets rel
 |-|-|
 | `PlayWAV(filename, loop)` | Play sound effect, returns `true` on success |
 | `StopWAV()` | Stop sound effects |
-| `PlayMusic(filename, loop)` | Play background music (MP3/MIDI/WAV, etc.), returns `true` on success |
+| `PlayMusic(filename, loop)` | Play background music (MP3/MIDI/WAV, explicit MCI type by extension; MIDI looping uses notify replay), returns `true` on success |
 | `StopMusic()` | Stop background music |
 | `IsMusicPlaying()` | Whether music is currently playing |
 | `PlayBeep(freq, duration)` | Beep |

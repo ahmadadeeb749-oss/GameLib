@@ -548,9 +548,11 @@ static bool _srandDone; // srand 是否已初始化
 
 #### `bool PlayMusic(const char *filename, bool loop = true)`
 - 使用 **MCI (Media Control Interface)** 播放背景音乐
-- 支持 MP3、MIDI、WAV 等 MCI 支持的格式
+- 支持 `.mp3`、`.mid/.midi`、`.wav`
 - 默认循环播放（`loop=true`）
-- 先尝试以 `mpegvideo` 类型打开，失败则自动检测类型
+- 按扩展名显式选择 MCI 设备类型：`.mp3` -> `mpegvideo`，`.mid/.midi` -> `sequencer`，`.wav` -> `waveaudio`
+- MIDI 不使用 `repeat` 命令；`sequencer` 设备改为 `notify` 完成回调后从头重播，避免 `play ... repeat` 在部分系统上失败
+- 不做自动检测 fallback；其他扩展名直接返回 `false`
 - 使用固定别名 `gamelib_music`，同时只能播放一首背景音乐
 - 调用时会自动停止之前的音乐
 - `filename` 按 **UTF-8** 解释，内部转为宽字符路径
@@ -803,7 +805,7 @@ int main() {
 | `COLORKEY_DEFAULT` 用 `#ifndef` 保护 | 允许用户在 include 前自定义覆盖 |
 | 每个精灵独立保存 Color Key | 不同素材可使用不同透明色，同时保留 `COLORKEY_DEFAULT` 作为初始值 |
 | PlayMusic 用 MCI 而非 PlaySound | MCI 支持 MP3，且与 PlaySound 独立通道，可同时播放音乐和音效 |
-| MCI 先尝试 mpegvideo 再自动检测 | mpegvideo 是 MP3 最可靠的类型，回退保证兼容其他格式 |
+| PlayMusic 按扩展名选择 MCI 类型 | `.mp3` 用 `mpegvideo`，`.mid/.midi` 用 `sequencer`，`.wav` 用 `waveaudio`，不依赖自动检测 |
 | GDI+ 通过 LoadLibrary 动态加载 | 避免编译时链接 `-lgdiplus -lole32`，保持只需 `-mwindows` |
 | GDI+ 懒初始化（首次 `LoadSprite` 时） | 不使用图片加载功能时零开销，不影响启动速度 |
 | COM Release 通过 vtable 手动调用 | 避免 `#include <ObjBase.h>`，减少头文件依赖 |

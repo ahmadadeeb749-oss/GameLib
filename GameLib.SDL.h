@@ -2441,10 +2441,45 @@ void GameLib::StopWAV()
 #endif
 }
 
+static char _gamelib_sdl_music_ascii_tolower(char ch)
+{
+    if (ch >= 'A' && ch <= 'Z') return (char)(ch - 'A' + 'a');
+    return ch;
+}
+
+static bool _gamelib_sdl_path_has_music_extension(const char *filename, const char *extension)
+{
+    if (!filename || !extension || !extension[0]) return false;
+
+    const char *dot = strrchr(filename, '.');
+    if (!dot || !dot[1]) return false;
+
+    const char *lhs = dot + 1;
+    const char *rhs = extension;
+    while (*lhs && *rhs) {
+        if (_gamelib_sdl_music_ascii_tolower(*lhs) != _gamelib_sdl_music_ascii_tolower(*rhs)) return false;
+        lhs++;
+        rhs++;
+    }
+    return *lhs == '\0' && *rhs == '\0';
+}
+
+static bool _gamelib_sdl_is_midi_music_path(const char *filename)
+{
+    return _gamelib_sdl_path_has_music_extension(filename, "mid") ||
+           _gamelib_sdl_path_has_music_extension(filename, "midi");
+}
+
 bool GameLib::PlayMusic(const char *filename, bool loop)
 {
 #if GAMELIB_SDL_HAS_MIXER
     if (!filename) return false;
+
+    if (_gamelib_sdl_is_midi_music_path(filename)) {
+        StopMusic();
+        return false;
+    }
+
     if (!_EnsureMixerReady()) return false;
 
     StopMusic();

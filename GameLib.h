@@ -105,6 +105,17 @@
 typedef DWORD MCIERROR;
 #endif
 
+#ifndef MM_MCINOTIFY
+#define MM_MCINOTIFY           0x03B9
+#endif
+
+#ifndef MCI_NOTIFY_SUCCESSFUL
+#define MCI_NOTIFY_SUCCESSFUL  0x0001
+#define MCI_NOTIFY_SUPERSEDED  0x0002
+#define MCI_NOTIFY_ABORTED     0x0004
+#define MCI_NOTIFY_FAILURE     0x0008
+#endif
+
 
 //---------------------------------------------------------------------
 // Dynamically loaded function pointer types
@@ -487,6 +498,8 @@ private:
 
     // music state (MCI)
     bool _musicPlaying;
+    bool _musicLoop;
+    bool _musicIsMidi;
 
     // random seed initialized flag
     static bool _srandDone;
@@ -696,6 +709,9 @@ static int _gamelib_load_apis()
     _gamelib_apis_loaded = 1;
     return 0;
 }
+
+static bool _gamelib_mci_play_music_alias(HWND callbackWindow, bool isMidi, bool loop);
+static void _gamelib_close_music_alias();
 
 
 //---------------------------------------------------------------------
@@ -911,6 +927,8 @@ GameLib::GameLib()
     _timerId = 0;
     memset(_bmi_data, 0, sizeof(_bmi_data));
     _musicPlaying = false;
+    _musicLoop = false;
+    _musicIsMidi = false;
     if (!_srandDone) {
         srand((unsigned int)time(NULL));
         _srandDone = true;
@@ -931,10 +949,11 @@ GameLib::GameLib()
 GameLib::~GameLib()
 {
     // Stop music
-    if (_musicPlaying && _gl_mciSendStringW) {
-        _gl_mciSendStringW(L"stop gamelib_music", NULL, 0, NULL);
-        _gl_mciSendStringW(L"close gamelib_music", NULL, 0, NULL);
+    if ((_musicPlaying || _musicIsMidi) && _gl_mciSendStringW) {
         _musicPlaying = false;
+        _musicLoop = false;
+        _musicIsMidi = false;
+        _gamelib_close_music_alias();
     }
     // Free all sprites
     for (size_t i = 0; i < _sprites.size(); i++) {
@@ -1048,6 +1067,38 @@ LRESULT CALLBACK GameLib::_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
             self->_active = (!minimized && active) ? true : false;
         }
         return DefWindowProcW(hWnd, msg, wParam, lParam);
+
+    case MM_MCINOTIFY:
+        if (!self || !self->_musicIsMidi) return 0;
+
+        if (wParam == MCI_NOTIFY_SUCCESSFUL) {
+            if (self->_musicLoop) {
+                if (_gl_mciSendStringW &&
+                    _gl_mciSendStringW(L"seek gamelib_music to start", NULL, 0, NULL) == 0 &&
+                    _gamelib_mci_play_music_alias(hWnd, true, true)) {
+                    return 0;
+                }
+            }
+
+            self->_musicPlaying = false;
+            self->_musicLoop = false;
+            self->_musicIsMidi = false;
+            _gamelib_close_music_alias();
+            return 0;
+        }
+
+        if (wParam == MCI_NOTIFY_FAILURE) {
+            self->_musicPlaying = false;
+            self->_musicLoop = false;
+            self->_musicIsMidi = false;
+            _gamelib_close_music_alias();
+            return 0;
+        }
+
+        if (wParam == MCI_NOTIFY_ABORTED || wParam == MCI_NOTIFY_SUPERSEDED) {
+            return 0;
+        }
+        return 0;
 
     case WM_KEYDOWN:
         if (lParam & GAMELIB_REPEATED_KEYMASK) return 0;
@@ -1789,6 +1840,57 @@ static bool _gamelib_mci_path_is_safe(const char *filename)
         if (*p == '"' || *p == '\r' || *p == '\n') return false;
     }
     return true;
+}
+
+static char _gamelib_ascii_tolower(char ch)
+{
+    if (ch >= 'A' && ch <= 'Z') return (char)(ch - 'A' + 'a');
+    return ch;
+}
+
+static bool _gamelib_path_has_extension(const char *filename, const char *extension)
+{
+    if (!filename || !extension || !extension[0]) return false;
+
+    const char *dot = strrchr(filename, '.');
+    if (!dot || !dot[1]) return false;
+
+    const char *lhs = dot + 1;
+    const char *rhs = extension;
+    while (*lhs && *rhs) {
+        if (_gamelib_ascii_tolower(*lhs) != _gamelib_ascii_tolower(*rhs)) return false;
+        lhs++;
+        rhs++;
+    }
+    return *lhs == '\0' && *rhs == '\0';
+}
+
+static const wchar_t *_gamelib_mci_device_type_for_path(const char *filename)
+{
+    if (_gamelib_path_has_extension(filename, "mp3")) return L"mpegvideo";
+    if (_gamelib_path_has_extension(filename, "mid")) return L"sequencer";
+    if (_gamelib_path_has_extension(filename, "midi")) return L"sequencer";
+    if (_gamelib_path_has_extension(filename, "wav")) return L"waveaudio";
+    return NULL;
+}
+
+static bool _gamelib_mci_is_midi_path(const char *filename)
+{
+    return _gamelib_path_has_extension(filename, "mid") ||
+           _gamelib_path_has_extension(filename, "midi");
+}
+
+static bool _gamelib_mci_play_music_alias(HWND callbackWindow, bool isMidi, bool loop)
+{
+    if (!_gl_mciSendStringW) return false;
+
+    if (isMidi) {
+        return _gl_mciSendStringW(L"play gamelib_music from 0 notify", NULL, 0, callbackWindow) == 0;
+    }
+
+    const wchar_t *playCmd = loop ? L"play gamelib_music repeat"
+                                  : L"play gamelib_music";
+    return _gl_mciSendStringW(playCmd, NULL, 0, NULL) == 0;
 }
 
 static bool _gamelib_read_text_line(FILE *fp, std::string &line)
@@ -2627,36 +2729,40 @@ bool GameLib::PlayMusic(const char *filename, bool loop)
 
     if (!_gamelib_mci_path_is_safe(filename)) return false;
 
+    const wchar_t *deviceType = _gamelib_mci_device_type_for_path(filename);
+    if (!deviceType) return false;
+
+    bool isMidi = _gamelib_mci_is_midi_path(filename);
+
     wchar_t *wideFilename = _gamelib_utf8_to_wide(filename, NULL);
     if (!wideFilename) return false;
 
     // Stop previous music first
     if (_musicPlaying) {
-        _gamelib_close_music_alias();
         _musicPlaying = false;
+        _musicLoop = false;
+        _musicIsMidi = false;
+        _gamelib_close_music_alias();
     }
 
-    // Open audio file (supports mp3/mid/wav etc., formats supported by MCI)
     std::wstring openCmd = L"open \"";
     openCmd += wideFilename;
-    openCmd += L"\" type mpegvideo alias gamelib_music";
+    openCmd += L"\" type ";
+    openCmd += deviceType;
+    openCmd += L" alias gamelib_music";
     if (_gl_mciSendStringW(openCmd.c_str(), NULL, 0, NULL) != 0) {
-        // If mpegvideo fails, try auto-detect type
-        openCmd = L"open \"";
-        openCmd += wideFilename;
-        openCmd += L"\" alias gamelib_music";
-        if (_gl_mciSendStringW(openCmd.c_str(), NULL, 0, NULL) != 0) {
-            free(wideFilename);
-            return false;
-        }
+        free(wideFilename);
+        return false;
     }
     free(wideFilename);
 
-    // Play
-    const wchar_t *playCmd = loop ? L"play gamelib_music repeat"
-                                  : L"play gamelib_music";
-    if (_gl_mciSendStringW(playCmd, NULL, 0, NULL) != 0) {
+    _musicLoop = loop;
+    _musicIsMidi = isMidi;
+
+    if (!_gamelib_mci_play_music_alias(_hwnd, isMidi, loop)) {
         _gamelib_close_music_alias();
+        _musicLoop = false;
+        _musicIsMidi = false;
         return false;
     }
 
@@ -2666,9 +2772,12 @@ bool GameLib::PlayMusic(const char *filename, bool loop)
 
 void GameLib::StopMusic()
 {
-    if (_musicPlaying) {
+    bool hadMusic = _musicPlaying || _musicIsMidi;
+    _musicPlaying = false;
+    _musicLoop = false;
+    _musicIsMidi = false;
+    if (hadMusic) {
         _gamelib_close_music_alias();
-        _musicPlaying = false;
     }
 }
 
