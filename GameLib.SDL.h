@@ -400,6 +400,7 @@ private:
         int tileSize;
         int tilesetId;
         int tilesetCols;
+        int tilesetTileCount;
         int *tiles;
         bool used;
     };
@@ -2812,6 +2813,7 @@ int GameLib::_AllocTilemapSlot()
     tm.tileSize = 0;
     tm.tilesetId = -1;
     tm.tilesetCols = 0;
+    tm.tilesetTileCount = 0;
     tm.tiles = NULL;
     tm.used = false;
     _tilemaps.push_back(tm);
@@ -2835,7 +2837,7 @@ bool GameLib::_IsValidTileId(int mapId, int tileId) const
     if (tileId == -1) return true;
     if (mapId < 0 || mapId >= (int)_tilemaps.size()) return false;
     if (!_tilemaps[mapId].used) return false;
-    int tileCount = _GetTilesetTileCount(_tilemaps[mapId].tilesetId, _tilemaps[mapId].tileSize);
+    int tileCount = _tilemaps[mapId].tilesetTileCount;
     return tileId >= 0 && tileId < tileCount;
 }
 
@@ -2858,6 +2860,7 @@ int GameLib::CreateTilemap(int cols, int rows, int tileSize, int tilesetId)
     _tilemaps[id].tileSize = tileSize;
     _tilemaps[id].tilesetId = tilesetId;
     _tilemaps[id].tilesetCols = _sprites[tilesetId].width / tileSize;
+    _tilemaps[id].tilesetTileCount = tileCount;
     _tilemaps[id].tiles = tiles;
     _tilemaps[id].used = true;
     return id;
@@ -2968,6 +2971,9 @@ void GameLib::FreeTilemap(int mapId)
         free(_tilemaps[mapId].tiles);
         _tilemaps[mapId].tiles = NULL;
     }
+    _tilemaps[mapId].tilesetId = -1;
+    _tilemaps[mapId].tilesetCols = 0;
+    _tilemaps[mapId].tilesetTileCount = 0;
     _tilemaps[mapId].used = false;
 }
 
@@ -3083,7 +3089,7 @@ void GameLib::DrawTilemap(int mapId, int x, int y, int flags)
     GameSprite &tset = _sprites[tsId];
     int ts = tm.tileSize;
     int tsCols = tm.tilesetCols;
-    int tileCount = _GetTilesetTileCount(tsId, ts);
+    int tileCount = tm.tilesetTileCount;
     if (tsCols <= 0 || tileCount <= 0) return;
 
     int col0 = (-x) / ts;

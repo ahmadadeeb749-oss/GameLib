@@ -510,6 +510,7 @@ private:
         int tileSize;       // tile size in pixels
         int tilesetId;      // tileset sprite ID
         int tilesetCols;    // tiles per row in tileset
+        int tilesetTileCount; // cached tile count in tileset
         int *tiles;         // tile ID array (cols * rows, -1 = empty)
         bool used;          // is this slot in use
     };
@@ -1123,6 +1124,8 @@ GameLib::~GameLib()
             _tilemaps[i].used = false;
         }
     }
+    // Clean up multimedia timer
+    _DestroyTimingResources();
     // Free DIB Section resources
     _DestroyGraphicsResources();
     // Destroy window
@@ -1130,8 +1133,6 @@ GameLib::~GameLib()
         DestroyWindow(_hwnd);
         _hwnd = NULL;
     }
-    // Clean up multimedia timer
-    _DestroyTimingResources();
 }
 
 
@@ -3205,7 +3206,7 @@ bool GameLib::_IsValidTileId(int mapId, int tileId) const
     if (tileId == -1) return true;
     if (mapId < 0 || mapId >= (int)_tilemaps.size()) return false;
     if (!_tilemaps[mapId].used) return false;
-    int tileCount = _GetTilesetTileCount(_tilemaps[mapId].tilesetId, _tilemaps[mapId].tileSize);
+    int tileCount = _tilemaps[mapId].tilesetTileCount;
     return tileId >= 0 && tileId < tileCount;
 }
 
@@ -3225,6 +3226,7 @@ int GameLib::_AllocTilemapSlot()
     tm.tileSize = 0;
     tm.tilesetId = -1;
     tm.tilesetCols = 0;
+    tm.tilesetTileCount = 0;
     tm.tiles = NULL;
     tm.used = false;
     _tilemaps.push_back(tm);
@@ -3250,6 +3252,7 @@ int GameLib::CreateTilemap(int cols, int rows, int tileSize, int tilesetId)
     _tilemaps[id].tileSize = tileSize;
     _tilemaps[id].tilesetId = tilesetId;
     _tilemaps[id].tilesetCols = _sprites[tilesetId].width / tileSize;
+    _tilemaps[id].tilesetTileCount = tileCount;
     _tilemaps[id].tiles = tiles;
     _tilemaps[id].used = true;
 
@@ -3361,6 +3364,9 @@ void GameLib::FreeTilemap(int mapId)
         free(_tilemaps[mapId].tiles);
         _tilemaps[mapId].tiles = NULL;
     }
+    _tilemaps[mapId].tilesetId = -1;
+    _tilemaps[mapId].tilesetCols = 0;
+    _tilemaps[mapId].tilesetTileCount = 0;
     _tilemaps[mapId].used = false;
 }
 
@@ -3476,7 +3482,7 @@ void GameLib::DrawTilemap(int mapId, int x, int y, int flags)
     GameSprite &tset = _sprites[tsId];
     int ts = tm.tileSize;
     int tsCols = tm.tilesetCols;
-    int tileCount = _GetTilesetTileCount(tsId, ts);
+    int tileCount = tm.tilesetTileCount;
     if (tsCols <= 0 || tileCount <= 0) return;
 
     // Calculate visible tile range on screen, avoid traversing the whole map
