@@ -9,9 +9,9 @@
 | `Update()`                   | 刷新画面、处理输入           |
 | `WaitFrame(fps)`             | 帧率控制                     |
 | `GetWidth()` / `GetHeight()` | 窗口尺寸                     |
-| `GetDeltaTime()`             | 帧间隔（秒）                 |
-| `GetFPS()`                   | 当前帧率                     |
-| `GetTime()`                  | 运行总时间（秒）             |
+| `GetDeltaTime()`             | 帧间隔（秒，返回 `double`）  |
+| `GetFPS()`                   | 当前帧率（返回 `double`）    |
+| `GetTime()`                  | 运行总时间（秒，返回 `double`） |
 | `SetTitle(title)`            | 修改窗口标题                 |
 | `ShowFps(show)`              | 是否在标题栏显示实时 FPS     |
 

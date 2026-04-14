@@ -723,9 +723,10 @@ SDL 版 `PlayBeep(int frequency, int duration)` 改为：
 
 SDL 版时间系统要求：
 
-- `GetTime()` 返回从 `Open()` 开始累计的秒数
-- `GetDeltaTime()` 返回上一帧间隔秒数
-- `GetFPS()` 采用与现有 `GameLib.h` 接近的“一秒一更新”统计方式
+- `GetTime()` 返回从 `Open()` 开始累计的秒数，公开类型为 `double`
+- `GetDeltaTime()` 返回上一帧间隔秒数，公开类型为 `double`
+- `GetFPS()` 采用与现有 `GameLib.h` 接近的“一秒一更新”统计方式，公开类型为 `double`
+- `_deltaTime`、`_fps`、`_fpsAccum` 的内部存储与计算也统一使用 `double`
 
 内部建议状态：
 
@@ -777,9 +778,9 @@ uint64_t _timeStartCounter;
 uint64_t _timePrevCounter;
 uint64_t _fpsTimeCounter;
 uint64_t _perfFrequency;
-float _deltaTime;
-float _fps;
-float _fpsAccum;
+double _deltaTime;
+double _fps;
+double _fpsAccum;
 
 // 精灵
 std::vector<GameSprite> _sprites;

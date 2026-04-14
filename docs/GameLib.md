@@ -254,9 +254,9 @@ int _mouseWheelDelta;   // 自上次 Update() 以来累计的滚轮增量
 // 时间
 DWORD _timeStart;       // Open() 时的时间戳
 DWORD _timePrev;        // 上一帧时间戳
-float _deltaTime;       // 帧间隔（秒）
-float _fps;             // 当前 FPS
-float _fpsAccum;        // FPS 计数累加器
+double _deltaTime;      // 帧间隔（秒）
+double _fps;            // 当前 FPS
+double _fpsAccum;       // FPS 计数累加器
 DWORD _fpsTime;         // FPS 统计时间窗口起点
 HANDLE _timerEvent;     // 多媒体定时器触发的事件对象
 UINT _timerId;          // 多媒体定时器 ID（来自 timeSetEvent）
@@ -306,20 +306,20 @@ static bool _srandDone; // srand 是否已初始化
 1. 通过 `BitBlt` 将 DIB Section 的 `_memDC` 刷新到窗口
 2. 保存上一帧按键状态到 `_keys_prev`，鼠标状态到 `_mouseButtons_prev`，并将 `_mouseWheelDelta` 清零
 3. 派发 Windows 消息（PeekMessage 循环）
-4. 更新 deltaTime 和 FPS（每秒统计一次）
+4. 更新 deltaTime 和 FPS（内部使用 `double` 计算，FPS 每秒统计一次）
 5. FPS 更新时调用 `_UpdateTitleFps()` 更新标题栏显示
 
 #### `void WaitFrame(int fps)`
 - 帧率控制，计算距离上次 `Update()` 的耗时；不足时优先等待多媒体定时器事件，不可用时回退 `Sleep(1)`
 - fps <= 0 时默认按 60 处理
 
-#### `float GetDeltaTime() const`
+#### `double GetDeltaTime() const`
 - 上一帧到当前帧的时间间隔（秒）
 
-#### `float GetFPS() const`
+#### `double GetFPS() const`
 - 当前帧率（每秒更新一次）
 
-#### `float GetTime() const`
+#### `double GetTime() const`
 - 从 `Open()` 开始到现在的总时间（秒）
 
 #### `int GetWidth() const` / `int GetHeight() const`

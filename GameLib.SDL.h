@@ -217,9 +217,9 @@ public:
     bool IsClosed() const;
     void Update();
     void WaitFrame(int fps);
-    float GetDeltaTime() const;
-    float GetFPS() const;
-    float GetTime() const;
+    double GetDeltaTime() const;
+    double GetFPS() const;
+    double GetTime() const;
     int GetWidth() const;
     int GetHeight() const;
     void SetTitle(const char *title);
@@ -362,9 +362,9 @@ private:
     uint64_t _timePrevCounter;
     uint64_t _fpsTimeCounter;
     uint64_t _perfFrequency;
-    float _deltaTime;
-    float _fps;
-    float _fpsAccum;
+    double _deltaTime;
+    double _fps;
+    double _fpsAccum;
 
     struct GameSprite {
         int width;
@@ -717,9 +717,9 @@ GameLib::GameLib()
     _timePrevCounter = 0;
     _fpsTimeCounter = 0;
     _perfFrequency = 0;
-    _deltaTime = 0.0f;
-    _fps = 0.0f;
-    _fpsAccum = 0.0f;
+    _deltaTime = 0.0;
+    _fps = 0.0;
+    _fpsAccum = 0.0;
     _currentWav = NULL;
     _wavChannel = 0;
     _currentMusic = NULL;
@@ -1263,9 +1263,9 @@ int GameLib::Open(int width, int height, const char *title, bool center)
     _timeStartCounter = (uint64_t)SDL_GetPerformanceCounter();
     _timePrevCounter = _timeStartCounter;
     _fpsTimeCounter = _timeStartCounter;
-    _deltaTime = 0.0f;
-    _fps = 0.0f;
-    _fpsAccum = 0.0f;
+    _deltaTime = 0.0;
+    _fps = 0.0;
+    _fpsAccum = 0.0;
     _SyncInputState();
     _UpdateTitleFps();
 
@@ -1338,14 +1338,14 @@ void GameLib::Update()
 
     uint64_t now = (uint64_t)SDL_GetPerformanceCounter();
     uint64_t deltaCounter = now - _timePrevCounter;
-    _deltaTime = (float)((double)deltaCounter / (double)_perfFrequency);
+    _deltaTime = (double)deltaCounter / (double)_perfFrequency;
     _timePrevCounter = now;
 
-    _fpsAccum += 1.0f;
+    _fpsAccum += 1.0;
     uint64_t fpsDelta = now - _fpsTimeCounter;
     if (fpsDelta >= _perfFrequency) {
-        _fps = (float)((double)_fpsAccum * (double)_perfFrequency / (double)fpsDelta);
-        _fpsAccum = 0.0f;
+        _fps = _fpsAccum * (double)_perfFrequency / (double)fpsDelta;
+        _fpsAccum = 0.0;
         _fpsTimeCounter = now;
         _UpdateTitleFps();
     }
@@ -1379,13 +1379,13 @@ void GameLib::WaitFrame(int fps)
     }
 }
 
-float GameLib::GetDeltaTime() const { return _deltaTime; }
-float GameLib::GetFPS() const { return _fps; }
-float GameLib::GetTime() const
+double GameLib::GetDeltaTime() const { return _deltaTime; }
+double GameLib::GetFPS() const { return _fps; }
+double GameLib::GetTime() const
 {
-    if (_perfFrequency == 0 || _timeStartCounter == 0) return 0.0f;
+    if (_perfFrequency == 0 || _timeStartCounter == 0) return 0.0;
     uint64_t now = (uint64_t)SDL_GetPerformanceCounter();
-    return (float)((double)(now - _timeStartCounter) / (double)_perfFrequency);
+    return (double)(now - _timeStartCounter) / (double)_perfFrequency;
 }
 int GameLib::GetWidth() const { return _width; }
 int GameLib::GetHeight() const { return _height; }

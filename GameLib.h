@@ -298,9 +298,9 @@ public:
     bool IsClosed() const;
     void Update();
     void WaitFrame(int fps);
-    float GetDeltaTime() const;
-    float GetFPS() const;
-    float GetTime() const;
+    double GetDeltaTime() const;
+    double GetFPS() const;
+    double GetTime() const;
     int GetWidth() const;
     int GetHeight() const;
     void SetTitle(const char *title);
@@ -459,9 +459,9 @@ private:
     // timing
     DWORD _timeStart;
     DWORD _timePrev;
-    float _deltaTime;
-    float _fps;
-    float _fpsAccum;
+    double _deltaTime;
+    double _fps;
+    double _fpsAccum;
     DWORD _fpsTime;
     HANDLE _timerEvent;     // event signaled by multimedia timer
     UINT   _timerId;        // multimedia timer ID (from timeSetEvent)
@@ -892,9 +892,9 @@ GameLib::GameLib()
     _mouseWheelDelta = 0;
     _timeStart = 0;
     _timePrev = 0;
-    _deltaTime = 0.0f;
-    _fps = 0.0f;
-    _fpsAccum = 0.0f;
+    _deltaTime = 0.0;
+    _fps = 0.0;
+    _fpsAccum = 0.0;
     _fpsTime = 0;
     _timerEvent = NULL;
     _timerId = 0;
@@ -1264,9 +1264,9 @@ int GameLib::Open(int width, int height, const char *title, bool center)
     _timeStart = _gl_timeGetTime();
     _timePrev = _timeStart;
     _fpsTime = _timeStart;
-    _fpsAccum = 0.0f;
-    _fps = 0.0f;
-    _deltaTime = 0.0f;
+    _fpsAccum = 0.0;
+    _fps = 0.0;
+    _deltaTime = 0.0;
 
     // Create 1ms periodic multimedia timer for precise frame timing
     _timerEvent = CreateEventA(NULL, FALSE, FALSE, NULL);
@@ -1322,15 +1322,15 @@ void GameLib::Update()
     DWORD now = _gl_timeGetTime();
     int32_t delta = (int32_t)(now - _timePrev);
     if (delta < 0) delta = 0;
-    _deltaTime = delta / 1000.0f;
+    _deltaTime = (double)delta / 1000.0;
     _timePrev = now;
 
     // Update FPS
-    _fpsAccum += 1.0f;
+    _fpsAccum += 1.0;
     int32_t fpsDelta = (int32_t)(now - _fpsTime);
     if (fpsDelta >= 1000) {
-        _fps = _fpsAccum * 1000.0f / fpsDelta;
-        _fpsAccum = 0.0f;
+        _fps = _fpsAccum * 1000.0 / (double)fpsDelta;
+        _fpsAccum = 0.0;
         _fpsTime = now;
         _UpdateTitleFps();
     }
@@ -1361,11 +1361,11 @@ void GameLib::WaitFrame(int fps)
 //---------------------------------------------------------------------
 // GetDeltaTime / GetFPS / GetTime / GetWidth / GetHeight
 //---------------------------------------------------------------------
-float GameLib::GetDeltaTime() const { return _deltaTime; }
-float GameLib::GetFPS() const { return _fps; }
-float GameLib::GetTime() const
+double GameLib::GetDeltaTime() const { return _deltaTime; }
+double GameLib::GetFPS() const { return _fps; }
+double GameLib::GetTime() const
 {
-    return (_gl_timeGetTime() - _timeStart) / 1000.0f;
+    return (double)(_gl_timeGetTime() - _timeStart) / 1000.0;
 }
 int GameLib::GetWidth() const { return _width; }
 int GameLib::GetHeight() const { return _height; }
