@@ -149,6 +149,7 @@ SDL 版实现上，要求在 `SDL_Init()` 之前设置 Windows DPI awareness 提
 - `GAMELIB_SDL_DISABLE_IMAGE=1` 时，`LoadSprite()` 的非 BMP 扩展格式支持会被关闭。
 - `GAMELIB_SDL_DISABLE_TTF=1` 时，`DrawTextFont()` 和字体测量函数会退化为不可用状态。
 - `GAMELIB_SDL_DISABLE_MIXER=1` 时，`PlayWAV()` / `PlayMusic()` 的高层 SDL_mixer 路径会被关闭，但 `PlayBeep()` 仍可走 plain SDL 音频兜底。
+- 若走“无扩展头但仍保留类型名”的前向声明路径，`TTF_Font`、`Mix_Chunk`、`Mix_Music` 的 typedef tag 必须与 SDL 官方头完全一致（如 `typedef struct TTF_Font TTF_Font;`），否则 MinGW 可能报 conflicting declaration。
 
 ### 3.2 关于音频库的决策
 
@@ -736,10 +737,12 @@ SDL 版音频继续保持“简单高层 API”风格：
 
 ### 10.4 PlayBeep
 
-SDL 版 `PlayBeep(int frequency, int duration)` 改为：
+SDL 版 `PlayBeep(int frequency, int duration)` 当前实现为 **阻塞式合成提示音**：
 
-- 运行时生成一小段 PCM 波形（建议正弦波或方波）
-- 再通过 SDL_mixer 或 SDL 音频设备播放
+- 运行时生成一小段 PCM 波形
+- 优先在 `SDL_mixer` 可用时通过保留 channel 播放
+- 若 mixer 不可用，则临时打开 plain SDL audio device，走 `SDL_QueueAudio`
+- 在声音播完或达到保护超时之前不返回，尽量保持与 Win32 `Beep()` 接近的教学语义
 
 目标：
 
@@ -843,6 +846,8 @@ static bool _srandDone;
 说明：
 
 - 这里的 `GameFontCacheEntry` 可定义为 `{ std::string key; TTF_Font *font; }`
+- 当前实现中的 `GameTilemap` 至少保存 `cols`、`rows`、`tileSize`、`tilesetId`、`tilesetCols`、`tilesetTileCount`、`tiles`、`used`。
+- 其中 `tilesetTileCount` 用于 `CreateTilemap` / `LoadTilemap` / `SetTile` / `FillTileRect` / `ClearTilemap` 的快速合法性校验；但 `DrawTilemap()` 在真正访问像素前，仍会按当前 tileset sprite 的实际尺寸刷新 `tilesetCols` 和 `tilesetTileCount`，避免 sprite 槽位复用后沿用过期缓存。
 - 是否用 `std::vector` 还是更轻量结构体数组，可在实现阶段再调整，但首版不建议过度优化
 
 ---
@@ -919,6 +924,7 @@ static bool _srandDone;
 
 - 让 sprite demo、animation、tilemap 类示例可迁移。
 - 当前状态：已完成，`CreateSprite`、`LoadSpriteBMP`、`LoadSprite`、`DrawSprite*`、`CreateTilemap` / `SaveTilemap` / `LoadTilemap` / `DrawTilemap` 已落地，并由 `tests/sdldemo1.cpp` 覆盖基础回归。
+- Tilemap 侧已经把非法 `tileId` 拒绝逻辑前移到创建 / 载入 / 写入边界；`DrawTilemap()` 绘制前还会按 live tileset sprite 尺寸刷新 `tilesetCols` / `tilesetTileCount`，避免 sprite 槽位释放重建后继续信任旧缓存。
 
 ### 阶段 3：字体与音频（已完成）
 
@@ -985,6 +991,7 @@ static bool _srandDone;
 5. **继续坚持软件帧缓冲**：不把用户绘图直接切到 SDL renderer API。
 6. **窗口默认不可缩放**：先做与现有 `GameLib.h` 接近的行为。
 7. **Windows 默认 DPI unaware**：让 `800x600` 这类教学窗口跟随系统缩放一起放大，视觉效果与 `GameLib.h` 保持一致。
+8. **Tilemap 校验与绘制分离**：写入路径可以依赖缓存做快速合法性判断，但真正绘制前必须按当前 tileset sprite 尺寸刷新缓存。
 
 ---
 
@@ -994,5 +1001,8 @@ static bool _srandDone;
 - 选择继续保留软件帧缓冲，是为了最大化复用现有图元、精灵、Tilemap、像素混合逻辑，也让 SDL 版与 Win32 版更容易保持语义一致。
 - 无 Alpha 且无 ColorKey 的 sprite/tilemap 快路径继续保持“直接覆盖目标像素”的规则，只有显式传入 `SPRITE_ALPHA` / `SPRITE_COLORKEY` 时才启用透明语义；这样 SDL 版与 Win32 版的默认 sprite 行为一致。
 - 选择 `SDL_mixer` 而不是纯 `SDL_Audio`，是为了让 `PlayWAV` / `PlayMusic` 这类高层 API 更快落地。
+- `PlayBeep` 优先复用 `SDL_mixer`，失败时再回退到 plain SDL queued audio，但整体仍保持阻塞式调用；这样更接近 Win32 版“提示音期间短暂停一下”的教学预期。
 - 字体部分不把“系统字体家族名跨平台精确解析”列为首版硬要求，是为了控制复杂度，避免一开始就把 Win32 / macOS / Linux 的字体发现机制都卷进来。
+- 可选 SDL 扩展类型的前向声明必须复用 SDL 官方 typedef tag；这是为了兼容 MinGW，对外看起来只是声明细节，但改错会直接导致编译冲突。
+- Tilemap 在创建阶段缓存 `tilesetCols` / `tilesetTileCount` 以降低校验成本，但 `DrawTilemap()` 在 memcpy 风险点前仍按 live sprite 尺寸刷新缓存；这是为了同时满足性能和 sprite 槽位复用后的内存安全。
 - Windows DPI 默认选择 `unaware`，不是因为它技术上更先进，而是因为它更符合教学场景：同样一个 `800x600` 示例换到高分屏机器上不会显得过小。

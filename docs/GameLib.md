@@ -6,10 +6,10 @@
 
 **文件位置**: `GameLib.h`
 **当前版本**: `1.3.0`
-**当前行数**: 3359 行
-**最后修改**: 2026/04/14
+**当前行数**: 3054 行
+**最后修改**: 2026/04/15
 
-当前 `1.3.0` 已包含鼠标显示/隐藏、`ShowMessage()`、椭圆绘制、图元 Alpha 混合、`DrawPrintfFont()` 以及默认 sprite/tilemap 快路径“无 Alpha 且无 ColorKey 时直接覆盖目标像素”的实现规则。
+当前 `1.3.0` 已包含鼠标显示/隐藏、`ShowMessage()`、椭圆绘制、图元 Alpha 混合、`DrawPrintfFont()`、默认 sprite/tilemap 快路径“无 Alpha 且无 ColorKey 时直接覆盖目标像素”的实现规则，以及最近补上的 `Open()` 重开清理、Tilemap `tileId` 校验与 `DrawTilemap()` 绘制前按当前 tileset 尺寸刷新元数据的安全语义。
 
 ---
 
@@ -220,6 +220,7 @@ struct GameTilemap {
     int tileSize;       // 瓦片边长（像素）
     int tilesetId;      // tileset 精灵 ID
     int tilesetCols;    // tileset 每行有多少个瓦片（自动计算）
+  int tilesetTileCount; // tileset 当前可用瓦片总数缓存（用于 tileId 校验）
     int *tiles;         // cols * rows 的瓦片 ID 数组（-1 = 空，malloc 分配）
     bool used;          // 槽位是否被使用
 };
@@ -267,6 +268,7 @@ double _fps;            // 当前 FPS
 double _fpsAccum;       // FPS 计数累加器
 HANDLE _timerEvent;     // 多媒体定时器触发的事件对象
 UINT _timerId;          // 多媒体定时器 ID（来自 timeSetEvent）
+bool _timerPeriodActive; // 是否已成功调用 timeBeginPeriod(1)
 
 // 精灵存储
 std::vector<GameSprite> _sprites;
@@ -276,6 +278,9 @@ std::vector<GameTilemap> _tilemaps;
 
 // 音乐状态（MCI）
 bool _musicPlaying;     // 是否正在播放 MCI 音乐
+bool _musicLoop;        // 当前音乐是否应循环
+bool _musicIsMidi;      // 当前音乐是否走 MIDI notify 重播路径
+std::wstring _musicAlias; // 当前实例使用的 MCI alias
 
 // 随机数
 static bool _srandDone; // srand 是否已初始化
@@ -296,6 +301,7 @@ static bool _srandDone; // srand 是否已初始化
 
 #### `int Open(int width, int height, const char *title, bool center = false)`
 - 创建窗口并初始化帧缓冲（通过 DIB Section）、输入、时间系统
+- 若当前对象之前已经 `Open()` 过，会先清理旧窗口、DIB、timer/event 等状态，并丢弃消息队列里残留的 `WM_QUIT`，因此支持 restart-safe 重开
 - **尺寸验证**：`width/height` 必须在 `1~16384` 范围内，否则返回 -7
 - **保证客户区严格等于 width × height**：先用 `AdjustWindowRect` 计算，创建后用 `GetClientRect` 二次校正
 - `center=true` 时窗口居中显示；否则使用 `CW_USEDEFAULT`
@@ -304,7 +310,7 @@ static bool _srandDone; // srand 是否已初始化
 - 返回值: 0=成功, -1=窗口类注册失败, -2=创建 DC 失败, -3=创建 DIB Section 失败, -4=SelectObject 失败, -5=UTF-8 转换失败, -6=创建窗口失败, -7=尺寸超限
 - 使用 `GWLP_USERDATA` 存储 this 指针
 - 使用 `QueryPerformanceFrequency()` / `QueryPerformanceCounter()` 建立高精度时间基准
-- 调用 `timeBeginPeriod(1)` 改善等待粒度
+- 调用 `timeBeginPeriod(1)` 改善等待粒度；若成功，会在关闭/析构时匹配调用 `timeEndPeriod(1)`
 - 尝试创建 1ms 周期的多媒体定时器事件（`CreateEventA + timeSetEvent`），供 `WaitFrame()` 更稳定地等待下一帧；若失败则自动回退到 `Sleep(1)`
 
 #### `bool IsClosed() const`
@@ -330,6 +336,7 @@ static bool _srandDone; // srand 是否已初始化
 
 #### `double GetTime() const`
 - 从 `Open()` 开始到现在的总时间（秒）
+- 在 `Open()` 前调用时安全返回 `0.0`
 
 #### `int GetWidth() const` / `int GetHeight() const`
 - 客户区宽度/高度
@@ -434,6 +441,7 @@ static bool _srandDone; // srand 是否已初始化
 - `fontSize`: 字体大小（像素）
 - 文字背景透明，支持 UTF-8 编码
 - 支持 `\n` 多行输出
+- 当 `color` 的 alpha 为 0 时直接不绘制；当 `0 < alpha < 255` 时，先由 GDI 生成字形，再按调用方 alpha 回混到 `_framebuffer`，保持与其他 ARGB 绘制 API 一致的透明语义
 
 #### `void DrawTextFont(int x, int y, const char *text, uint32_t color, int fontSize)`
 - 简化版本，使用默认字体 `GAMELIB_DEFAULT_FONT_NAME`
@@ -474,6 +482,7 @@ static bool _srandDone; // srand 是否已初始化
 - 每行按 4 字节对齐读取
 - 24-bit BMP alpha 默认为 0xFF
 - **安全性**：使用 `memcpy` 读取 BMP 头字段（避免严格别名/对齐问题），尺寸限制 `1~16384`
+- **失败原子性**：如果文件截断、短读或格式非法，已经申请的 sprite 槽位会回滚，不会留下半初始化精灵
 - 返回精灵 ID（失败返回 -1）
 
 #### `int LoadSprite(const char *filename)`
@@ -590,7 +599,7 @@ static bool _srandDone; // srand 是否已初始化
 - 按扩展名显式选择 MCI 设备类型：`.mp3` -> `mpegvideo`，`.mid/.midi` -> `sequencer`，`.wav` -> `waveaudio`
 - MIDI 不使用 `repeat` 命令；`sequencer` 设备改为 `notify` 完成回调后从头重播，避免 `play ... repeat` 在部分系统上失败
 - 不做自动检测 fallback；其他扩展名直接返回 `false`
-- 使用固定别名 `gamelib_music`，同时只能播放一首背景音乐
+- 每个 `GameLib` 对象使用自己的 MCI alias；同一个对象同一时刻只能播放一首背景音乐
 - 调用时会自动停止之前的音乐
 - `filename` 按 **UTF-8** 解释，内部转为宽字符路径
 - **安全性**：`filename` 为 NULL 时直接返回 `false`；拒绝包含引号和换行的文件名（防止 MCI 命令注入）
@@ -638,7 +647,8 @@ static bool _srandDone; // srand 是否已初始化
 - `tileSize`：瓦片边长（像素），tileset 精灵按此尺寸切分为格子
 - `tilesetId`：通过 `LoadSprite` 或 `CreateSprite` 加载的精灵 ID，作为瓦片图集
 - tileset 中瓦片编号从 0 开始，从左到右、从上到下排列
-- 自动计算 `tilesetCols = spriteWidth / tileSize`
+- 自动计算并缓存 `tilesetCols = spriteWidth / tileSize` 与 `tilesetTileCount`
+- 若 tileset 在当前 `tileSize` 下切不出任何完整瓦片，则创建失败
 - 所有格子初始化为 -1（空，不绘制）
 
 #### `bool SaveTilemap(const char *filename, int mapId) const`
@@ -656,16 +666,19 @@ static bool _srandDone; // srand 是否已初始化
 - 某一行超过 `cols` 的数据会忽略，不足 `cols` 的剩余格子保留为 `-1`
 - 文件超过 `rows` 的多余数据行会忽略；若不足 `rows` 行，缺失行保留为 `-1`
 - 不从文件中读取 tileset 信息，调用者必须显式提供 `tilesetId`
+- 读到超出当前 tileset 可用范围的 `tileId` 时返回 `-1`，不会保留半成品地图
 - 在读到非整数 token 等非法内容时返回 `-1`，不会保留半成品地图
 
 #### `void FreeTilemap(int mapId)`
 - 释放地图的 tiles 数组内存，标记槽位为未使用
+- 同时清空 `tilesetId` / `tilesetCols` / `tilesetTileCount` 等缓存元数据
 - 不释放 tileset 精灵（由用户通过 `FreeSprite` 管理）
 
 #### `void SetTile(int mapId, int col, int row, int tileId)`
 - 设置 (col, row) 处的瓦片编号
 - `tileId >= 0`：对应 tileset 中的第几块瓦片
 - `tileId = -1`：空格，不绘制
+- 若 `tileId` 超出当前 tileset 可用范围，则忽略本次写入
 
 #### `int GetTile(int mapId, int col, int row) const`
 - 获取 (col, row) 处的瓦片编号
@@ -690,10 +703,12 @@ static bool _srandDone; // srand 是否已初始化
 #### `void FillTileRect(int mapId, int col, int row, int cols, int rows, int tileId)`
 - 用同一个 `tileId` 批量填充一块矩形瓦片区域
 - 会自动裁剪到地图边界，适合快速生成地面、平台、房间块
+- 若 `tileId` 非法，则整次填充直接忽略
 
 #### `void ClearTilemap(int mapId, int tileId = -1)`
 - 将整张地图填充为同一个瓦片编号
 - 默认值 `-1` 表示清空整张地图
+- 若传入的 `tileId` 非法，则忽略本次清空请求
 
 #### `void DrawTilemap(int mapId, int x, int y, int flags = 0)`
 - 绘制瓦片地图到帧缓冲
@@ -705,6 +720,7 @@ static bool _srandDone; // srand 是否已初始化
   - `SPRITE_ALPHA | SPRITE_COLORKEY` — 可组合使用
 - 如果瓦片图集依赖透明孔洞，应传入 `SPRITE_COLORKEY` 或 `SPRITE_ALPHA`
 - **性能优化**：只绘制屏幕可见范围内的瓦片（自动计算可见列/行范围），不遍历整张地图
+- 绘制前会按当前 tileset sprite 的实际尺寸刷新 `tilesetCols` 与 `tilesetTileCount`；即使同一个 sprite 槽位被释放后重新装入更小资源，也不会继续信任旧缓存
 - 每个瓦片做像素级边缘裁剪，处理屏幕边界的半瓦片
 - 无 `SPRITE_ALPHA` / `SPRITE_COLORKEY` 时逐行 `memcpy`；其他情况复用 `_DrawSpriteAreaFast`
 
@@ -726,6 +742,7 @@ static bool _srandDone; // srand 是否已初始化
 | `WM_LBUTTONDOWN/UP` | 更新 `_mouseButtons[0]` |
 | `WM_RBUTTONDOWN/UP` | 更新 `_mouseButtons[1]` |
 | `WM_MBUTTONDOWN/UP` | 更新 `_mouseButtons[2]` |
+| `MM_MCINOTIFY` | 当当前音乐是 MIDI 且 `_musicLoop=true` 时，执行 `seek ... to start` 后重新播放；否则清理该实例的 MCI 资源状态 |
 | `WM_PAINT` | 用 `BitBlt` 从 `_memDC` 重绘帧缓冲 |
 
 ---
@@ -736,6 +753,8 @@ static bool _srandDone; // srand 是否已初始化
 |------|------|
 | `static int _InitWindowClass()` | 注册窗口类（使用 `RegisterClassW`，只执行一次，使用静态局部变量） |
 | `static LRESULT CALLBACK _WndProc(...)` | 窗口过程回调 |
+| `void _DestroyGraphicsResources()` | 释放 DIB Section、常备 DC 和相关图形资源，供 `Open()` 重开和析构共用 |
+| `void _DestroyTimingResources()` | 停止多媒体定时器、关闭事件对象，并在需要时匹配 `timeEndPeriod(1)` |
 | `void _DispatchMessages()` | PeekMessage 循环派发消息 |
 | `void _InitDIBInfo(void *ptr, int w, int h)` | 初始化 BITMAPINFO（32-bit, top-down，`biSizeImage` 使用 `(size_t)` 防溢出） |
 | `void _SetPixelFast(int x, int y, uint32_t c)` | 无边界检查的像素写入；Alpha<255 时转为混合写入 |
@@ -745,6 +764,8 @@ static bool _srandDone; // srand 是否已初始化
 | `void _DrawSpriteAreaFast(...)` | 非缩放精灵/区域绘制快路径；无 Alpha 且无 ColorKey 时直接写入源像素（无翻转时优先逐行 `memcpy`），其他情况按 flags 做 Color Key 或 Alpha 处理 |
 | `void _DrawSpriteAreaScaled(...)` | 缩放绘制路径，使用最近邻采样并保持翻转、Color Key、Alpha 语义 |
 | `int _AllocTilemapSlot()` | 在 `_tilemaps` 向量中找空闲槽位或追加新槽位 |
+| `int _GetTilesetTileCount(int tilesetId, int tileSize) const` | 根据当前 tileset sprite 尺寸计算可用瓦片总数 |
+| `bool _IsValidTileId(int mapId, int tileId) const` | 检查 `tileId` 是否为 `-1` 或落在当前 tileset 可用范围内 |
 | `static int _gamelib_floor_div(int value, int divisor)` | 向下取整整数除法，供负坐标的 Tilemap 像素到瓦片坐标换算使用 |
 | `static int _gamelib_round_to_int(double value)` | 将浮点值按四舍五入转为整数，供椭圆采样使用 |
 | `static uint32_t _gamelib_alpha_blend(uint32_t dst, uint32_t src)` | 统一的 ARGB source-over 混色 helper |
@@ -755,7 +776,8 @@ static bool _srandDone; // srand 是否已初始化
 | `static void _gamelib_strip_utf8_bom(std::string&)` | 移除 `.glm` 首行可能存在的 UTF-8 BOM |
 | `static bool _gamelib_parse_int_tokens(...)` | 按空格/Tab 解析整数 token，供 `.glm` 头部和瓦片行共用 |
 | `static bool _gamelib_mci_path_is_safe(...)` | 检查音乐路径是否包含引号或换行，避免 MCI 命令拼接注入 |
-| `static void _gamelib_close_music_alias()` | 停止并关闭固定别名 `gamelib_music` 对应的 MCI 资源 |
+| `static bool _gamelib_mci_play_music_alias(...)` | 按实例 alias 启动 MCI 播放；MIDI 走 `notify` 路径，其他格式可直接 `repeat` |
+| `static void _gamelib_close_music_alias(...)` | 停止并关闭指定 alias 对应的 MCI 资源 |
 | `static HFONT _gamelib_create_font_utf8(...)` | 用 UTF-8 字体名创建 GDI 字体对象 |
 | `static void _gamelib_measure_font_text(...)` | 基于 `GetTextExtentPoint32W` 计算多行字体文字的像素宽高 |
 | `static int _gamelib_gdiplus_init()` | 懒加载 `gdiplus.dll` 和 `ole32.dll`，解析函数地址并调用 `GdiplusStartup`（仅首次执行） |
@@ -812,7 +834,7 @@ int main() {
 2. **PlayBeep 是阻塞的** — 会暂停游戏循环
 3. **单窗口** — 窗口类名固定为 "GameLibWindowClass"，同时只能有一个 GameLib 实例正常工作
 4. **WaitFrame 精度** — 已改为基于绝对帧边界的 QPC 节拍，并在最后一小段时间里做更细的收尾等待；但底层仍受 Windows 调度粒度影响，不是硬实时计时器
-5. **MCI 音乐单通道** — 同时只能播放一首背景音乐（固定别名 `gamelib_music`）
+5. **背景音乐单通道** — 每个 `GameLib` 对象同一时刻仍只能播放一首 MCI 背景音乐；Win32 音效继续走 `PlaySoundW` 这一简单高层通道
 
 ### 未来改进方向
 
@@ -842,11 +864,14 @@ int main() {
 | FPS 每秒统计一次 | 平滑显示，避免帧间波动 |
 | 时间统计使用 `QueryPerformanceCounter` | 比 `timeGetTime` 有更高的计时分辨率 |
 | `WaitFrame` 使用绝对帧边界 + 粗等 + 短尾收尾 | 避免把本帧工作耗时重复算进等待时间，并减少最后 1ms 左右的 oversleep |
+| `Open()` 支持 restart-safe 重开 | 先清旧窗口 / DIB / timer 资源并清掉残留 `WM_QUIT`，避免同一对象重开时继承上一次状态 |
+| 关闭流程先释放 timer 资源再销毁窗口 | 避免窗口销毁后极短时间里定时器事件还可能被 signal |
 | Color Key 用品红 (0xFFFF00FF) 而非黑色 | 黑色难以制作和判断，品红是 2D 资源常用透明色 |
 | `COLORKEY_DEFAULT` 用 `#ifndef` 保护 | 允许用户在 include 前自定义覆盖 |
 | 每个精灵独立保存 Color Key | 不同素材可使用不同透明色，同时保留 `COLORKEY_DEFAULT` 作为初始值 |
 | PlayMusic 用 MCI 而非 PlaySound | MCI 支持 MP3，且与 PlaySound 独立通道，可同时播放音乐和音效 |
 | PlayMusic 按扩展名选择 MCI 类型 | `.mp3` 用 `mpegvideo`，`.mid/.midi` 用 `sequencer`，`.wav` 用 `waveaudio`，不依赖自动检测 |
+| MCI 音乐使用实例级 alias | 避免固定全局 alias 在多对象或重开路径下发生冲突 |
 | GDI+ 通过 LoadLibrary 动态加载 | 避免编译时链接 `-lgdiplus -lole32`，保持只需 `-mwindows` |
 | GDI+ 懒初始化（首次 `LoadSprite` 时） | 不使用图片加载功能时零开销，不影响启动速度 |
 | COM Release 通过 vtable 手动调用 | 避免 `#include <ObjBase.h>`，减少头文件依赖 |
@@ -861,7 +886,8 @@ int main() {
 | `unsigned int` 替代 `UINT32` | GCC 4.9.2 的 MinGW 头文件可能未定义 `UINT32` |
 | Tilemap tiles 用 `int*`（malloc 分配）管理 | 与精灵像素内存管理风格一致，析构时自动释放 |
 | Tilemap 瓦片 ID 用 -1 表示空 | 0 是有效的 tileset 第一块瓦片，-1 不会与任何瓦片冲突 |
-| `tilesetCols` 在 `CreateTilemap` 时预计算 | 避免 `DrawTilemap` 每帧重复计算除法 |
+| Tilemap 在创建时缓存 `tilesetCols` / `tilesetTileCount`，绘制前再按当前 sprite 尺寸刷新 | 校验路径需要低开销，但绘制路径不能信任 sprite 槽位复用后过期的旧缓存 |
+| Tilemap 载入/写入时校验 `tileId` | 尽早拒绝越界瓦片，避免后续 `DrawTilemap` 访问 tileset 源像素越界 |
 | `DrawTilemap` 预计算可见瓦片范围 | 大地图（如 200×50）时只遍历屏幕内的瓦片，保证绘制性能 |
 | `DrawTilemap` 复用非缩放精灵快路径 | 无 `SPRITE_ALPHA` / `SPRITE_COLORKEY` 时逐行 memcpy；其他情况转到 `_DrawSpriteAreaFast`，避免保留重复实现 |
 | Tilemap 不管理 tileset 精灵的生命周期 | `FreeTilemap` 只释放 tiles 数组，tileset 精灵由用户通过 `FreeSprite` 控制 |
@@ -872,7 +898,7 @@ int main() {
 | `ShowMessage` 只暴露两种按钮布局 | 对初学者 API 保持足够简单，同时覆盖确认/询问两类常见对话框 |
 | `BitBlt` 替代 `SetDIBitsToDevice` | DIB Section 场景下 `BitBlt` 更高效，且代码更简洁 |
 | GDI 文字函数动态加载 | 所有 GDI 函数通过 `LoadLibrary` + `GetProcAddress` 加载，保持只需 `-mwindows` 编译 |
-| `DrawTextFont` alpha 修复 | GDI `TextOutW` 写入 alpha=0；绘制后 `GdiFlush()` + 扫描文字 bounding box，对 alpha=0 且 RGB!=0 的像素恢复 alpha=0xFF |
+| `DrawTextFont` 结果按调用方 alpha 再混回帧缓冲 | GDI 栅格本身不遵守 GameLib 的 ARGB 语义，需要先修正字形 alpha，再按调用方 alpha 做 post-blend |
 | 构造函数加载核心 API | `gdi32.dll`/`winmm.dll` 是 Windows 系统 DLL，实际不会加载失败；构造时加载消除了"API 未加载"状态，后续方法无需 NULL 检查 |
 | 构造失败 `MessageBoxA` + `exit(1)` | 面向初学者的库，构造失败（系统 DLL 无法加载）是灾难性的，直接终止比返回错误码更友好 |
 | 精灵/帧缓冲尺寸限制 16384 | 防止 `width * height * 4` 整数溢出（16384 × 16384 × 4 = 1 GB，在 `size_t` 范围内） |
@@ -881,6 +907,7 @@ int main() {
 | `COLOR_RGB` / `COLOR_ARGB` 每分量 `& 0xFF` | 防止调用者传入超过 255 的值导致位移溢出污染相邻通道 |
 | `LoadSpriteBMP` 支持 8-bit 调色板 BMP | 许多经典游戏素材和工具导出 256 色 BMP；读取 DIB header 后的调色板（BGRX 格式，最多 256 条目），每像素字节查表转 32-bit ARGB |
 | `LoadSpriteBMP` 用 `memcpy` 读 BMP 头 | 避免通过指针强制转换（aliasing cast）读取未对齐的多字节字段，符合严格别名规则 |
+| `LoadSpriteBMP` 失败时回滚精灵槽 | 截断文件或短读不能留下半初始化 sprite，避免后续误用野数据 |
 | `_gamelib_load_apis` 失败时清理所有指针 | GetProcAddress 部分失败时 NULL out 所有指针 + FreeLibrary 两个 DLL，防止悬空指针 |
 | `_gamelib_gdiplus_init` 失败时分级清理 | -2/-3 错误路径 FreeLibrary 已加载的 DLL；-4 错误（`GdiplusStartup` 失败）不释放 DLL 因为函数指针已指向 DLL 内部地址 |
 | `PlayMusic` 使用 `mciSendStringW` + 路径过滤 | 路径支持 UTF-8；拒绝引号和换行，避免 MCI 字符串命令注入 |
