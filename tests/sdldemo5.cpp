@@ -151,14 +151,14 @@ int main()
     int treeCount = 5;
     int treeY = (FG_R - 3) * TS - 61;
 
-    float playerX = 48.0f;
-    float playerY = (float)((fgRows - 3) * fgTileSize - CHAR_FOOT);
-    float speed = 180.0f;
+    double playerX = 48.0;
+    double playerY = (double)((fgRows - 3) * fgTileSize - CHAR_FOOT);
+    double speed = 180.0;
     int facing = 1;
 
     while (!game.IsClosed()) {
-        float dt = game.GetDeltaTime();
-        if (dt > 0.05f) dt = 0.05f;
+        double dt = game.GetDeltaTime();
+        if (dt > 0.05) dt = 0.05;
 
         if (game.IsKeyDown(KEY_RIGHT) || game.IsKeyDown(KEY_D)) {
             playerX += speed * dt;
@@ -169,10 +169,10 @@ int main()
             facing = -1;
         }
         if (playerX < 0) playerX = 0;
-        if (playerX > fgWorldWidth - CHAR_W) playerX = (float)(fgWorldWidth - CHAR_W);
+        if (playerX > fgWorldWidth - CHAR_W) playerX = (double)(fgWorldWidth - CHAR_W);
 
-        float cameraX = playerX - SW / 2 + CHAR_W / 2;
-        float maxCam = (float)(fgWorldWidth - SW);
+        double cameraX = playerX - SW / 2 + CHAR_W / 2;
+        double maxCam = (double)(fgWorldWidth - SW);
         if (cameraX < 0) cameraX = 0;
         if (cameraX > maxCam) cameraX = maxCam;
 

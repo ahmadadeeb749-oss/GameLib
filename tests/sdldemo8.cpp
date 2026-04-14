@@ -38,13 +38,13 @@ int main()
     bool gameOver = false;
     bool paused = false;
 
-    float moveTimer = 0;
-    float moveInterval = 0.15f;
+    double moveTimer = 0.0;
+    double moveInterval = 0.15;
 
     while (!game.IsClosed()) {
         if (game.IsKeyPressed(KEY_ESCAPE)) break;
 
-        float dt = game.GetDeltaTime();
+        double dt = game.GetDeltaTime();
 
         if (!gameOver) {
             if (game.IsKeyPressed(KEY_P))
@@ -94,7 +94,7 @@ int main()
                                 snakeC[i] = snakeC[i - 1];
                             }
                             score += 10;
-                            if (moveInterval > 0.06f) moveInterval -= 0.003f;
+                            if (moveInterval > 0.06) moveInterval -= 0.003;
 
                             bool onSnake;
                             do {
@@ -122,7 +122,7 @@ int main()
             dir = 3; nextDir = 3;
             foodR = 5; foodC = 15;
             score = 0;
-            moveInterval = 0.15f;
+            moveInterval = 0.15;
             gameOver = false;
         }
 

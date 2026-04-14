@@ -96,17 +96,17 @@ int main()
     int fw = 12, fh = 16;  // frame size
     int scale = 3;          // display scale
 
-    float px = 300, py = 220;
-    float speed = 100.0f;   // pixels per second
+    double px = 300.0, py = 220.0;
+    double speed = 100.0;   // pixels per second
     int dir = 0;            // 0=down 1=left 2=right 3=up
     int frame = 0;
-    float animTimer = 0;
+    double animTimer = 0.0;
     bool moving = false;
 
     while (!game.IsClosed()) {
         if (game.IsKeyPressed(KEY_ESCAPE)) break;
 
-        float dt = game.GetDeltaTime();
+        double dt = game.GetDeltaTime();
         moving = false;
 
         // Movement
@@ -118,19 +118,19 @@ int main()
         // Boundary check
         if (px < 0) px = 0;
         if (py < 0) py = 0;
-        if (px > game.GetWidth() - fw * scale) px = (float)(game.GetWidth() - fw * scale);
-        if (py > game.GetHeight() - fh * scale) py = (float)(game.GetHeight() - fh * scale);
+        if (px > game.GetWidth() - fw * scale) px = (double)(game.GetWidth() - fw * scale);
+        if (py > game.GetHeight() - fh * scale) py = (double)(game.GetHeight() - fh * scale);
 
         // Animation frame update
         if (moving) {
             animTimer += dt;
-            if (animTimer >= 0.15f) {
-                animTimer = 0;
+            if (animTimer >= 0.15) {
+                animTimer = 0.0;
                 frame = (frame + 1) % 3;
             }
         } else {
             frame = 0;  // standing frame
-            animTimer = 0;
+            animTimer = 0.0;
         }
 
         // --- Drawing ---

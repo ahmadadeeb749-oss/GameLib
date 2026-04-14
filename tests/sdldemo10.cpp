@@ -93,18 +93,18 @@ int main()
     int fh = 16;
     int scale = 3;
 
-    float px = 300;
-    float py = 220;
-    float speed = 100.0f;
+    double px = 300.0;
+    double py = 220.0;
+    double speed = 100.0;
     int dir = 0;
     int frame = 0;
-    float animTimer = 0;
+    double animTimer = 0.0;
     bool moving = false;
 
     while (!game.IsClosed()) {
         if (game.IsKeyPressed(KEY_ESCAPE)) break;
 
-        float dt = game.GetDeltaTime();
+        double dt = game.GetDeltaTime();
         moving = false;
 
         if (game.IsKeyDown(KEY_DOWN) || game.IsKeyDown(KEY_S)) {
@@ -130,18 +130,18 @@ int main()
 
         if (px < 0) px = 0;
         if (py < 0) py = 0;
-        if (px > game.GetWidth() - fw * scale) px = (float)(game.GetWidth() - fw * scale);
-        if (py > game.GetHeight() - fh * scale) py = (float)(game.GetHeight() - fh * scale);
+        if (px > game.GetWidth() - fw * scale) px = (double)(game.GetWidth() - fw * scale);
+        if (py > game.GetHeight() - fh * scale) py = (double)(game.GetHeight() - fh * scale);
 
         if (moving) {
             animTimer += dt;
-            if (animTimer >= 0.15f) {
-                animTimer = 0;
+            if (animTimer >= 0.15) {
+                animTimer = 0.0;
                 frame = (frame + 1) % 3;
             }
         } else {
             frame = 0;
-            animTimer = 0;
+            animTimer = 0.0;
         }
 
         game.Clear(COLOR_DARK_GREEN);
