@@ -7,6 +7,7 @@
 
 #include "../GameLib.h"
 #include <math.h>
+#include <stdio.h>
 
 #define BRICK_ROWS 6
 #define BRICK_COLS 10
@@ -16,10 +17,42 @@
 #define BRICK_OFFSET_X 12
 #define BRICK_OFFSET_Y 50
 
+static const char *ChooseExistingPath(const char *pathA, const char *pathB)
+{
+    FILE *file = fopen(pathA, "rb");
+    if (file != NULL) {
+        fclose(file);
+        return pathA;
+    }
+
+    file = fopen(pathB, "rb");
+    if (file != NULL) {
+        fclose(file);
+        return pathB;
+    }
+
+    return pathA;
+}
+
 int main()
 {
     GameLib game;
     game.Open(640, 480, "12 - Breakout", true);
+
+    const char *launchSfx = ChooseExistingPath("../assets/sound/jump.wav", "assets/sound/jump.wav");
+    const char *bounceSfx = ChooseExistingPath("../assets/sound/hit.wav", "assets/sound/hit.wav");
+    const char *brickRowSfx[BRICK_ROWS] = {
+        ChooseExistingPath("../assets/sound/note_do_high.wav", "assets/sound/note_do_high.wav"),
+        ChooseExistingPath("../assets/sound/note_si.wav", "assets/sound/note_si.wav"),
+        ChooseExistingPath("../assets/sound/note_la.wav", "assets/sound/note_la.wav"),
+        ChooseExistingPath("../assets/sound/note_sol.wav", "assets/sound/note_sol.wav"),
+        ChooseExistingPath("../assets/sound/note_fa.wav", "assets/sound/note_fa.wav"),
+        ChooseExistingPath("../assets/sound/note_mi.wav", "assets/sound/note_mi.wav")
+    };
+    const char *loseLifeSfx = ChooseExistingPath("../assets/sound/explosion.wav", "assets/sound/explosion.wav");
+    const char *restartSfx = ChooseExistingPath("../assets/sound/click.wav", "assets/sound/click.wav");
+    const char *gameOverSfx = ChooseExistingPath("../assets/sound/game_over.wav", "assets/sound/game_over.wav");
+    const char *winSfx = ChooseExistingPath("../assets/sound/victory.wav", "assets/sound/victory.wav");
 
     // Bricks
     bool bricks[BRICK_ROWS][BRICK_COLS];
@@ -48,6 +81,8 @@ int main()
     totalBricks = BRICK_ROWS * BRICK_COLS;
 
     while (!game.IsClosed()) {
+        const char *sfxToPlay = NULL;
+
         if (game.IsKeyPressed(KEY_ESCAPE)) break;
 
         if (!gameOver && !gameWin) {
@@ -65,6 +100,7 @@ int main()
                     started = true;
                     ballVX = 3.0f;
                     ballVY = -4.0f;
+                    sfxToPlay = launchSfx;
                 }
             } else {
                 // Move ball
@@ -72,19 +108,35 @@ int main()
                 ballY += ballVY;
 
                 // Left/right walls
-                if (ballX - ballR < 0) { ballX = (float)ballR; ballVX = -ballVX; }
-                if (ballX + ballR > game.GetWidth()) { ballX = (float)(game.GetWidth() - ballR); ballVX = -ballVX; }
+                if (ballX - ballR < 0) {
+                    ballX = (float)ballR;
+                    ballVX = -ballVX;
+                    if (!sfxToPlay) sfxToPlay = bounceSfx;
+                }
+                if (ballX + ballR > game.GetWidth()) {
+                    ballX = (float)(game.GetWidth() - ballR);
+                    ballVX = -ballVX;
+                    if (!sfxToPlay) sfxToPlay = bounceSfx;
+                }
 
                 // Top
-                if (ballY - ballR < 0) { ballY = (float)ballR; ballVY = -ballVY; }
+                if (ballY - ballR < 0) {
+                    ballY = (float)ballR;
+                    ballVY = -ballVY;
+                    if (!sfxToPlay) sfxToPlay = bounceSfx;
+                }
 
                 // Bottom (lose ball)
                 if (ballY + ballR > game.GetHeight()) {
                     lives--;
                     if (lives <= 0) {
                         gameOver = true;
+                        sfxToPlay = gameOverSfx;
                     } else {
                         started = false;
+                        ballVX = 3.0f;
+                        ballVY = -4.0f;
+                        sfxToPlay = loseLifeSfx;
                     }
                 }
 
@@ -97,6 +149,7 @@ int main()
                     // Adjust horizontal speed based on where ball hit paddle
                     float hitPos = (ballX - padX) / padW;  // 0.0 ~ 1.0
                     ballVX = (hitPos - 0.5f) * 8.0f;
+                    if (!sfxToPlay) sfxToPlay = bounceSfx;
                 }
 
                 // Brick collision
@@ -128,7 +181,12 @@ int main()
                             else
                                 ballVY = -ballVY;
 
-                            if (totalBricks <= 0) gameWin = true;
+                            if (totalBricks <= 0) {
+                                gameWin = true;
+                                sfxToPlay = winSfx;
+                            } else {
+                                sfxToPlay = brickRowSfx[r];
+                            }
                             goto done_collision;
                         }
                     }
@@ -148,8 +206,12 @@ int main()
                 started = false;
                 gameOver = false;
                 gameWin = false;
+                sfxToPlay = restartSfx;
             }
         }
+
+        if (sfxToPlay)
+            game.PlayWAV(sfxToPlay);
 
         // --- Drawing ---
         game.Clear(COLOR_BLACK);
