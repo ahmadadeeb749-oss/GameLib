@@ -237,6 +237,13 @@ public:
     void Clear(uint32_t color = COLOR_BLACK);
     void SetPixel(int x, int y, uint32_t color);
     uint32_t GetPixel(int x, int y) const;
+    void SetClip(int x, int y, int w, int h);
+    void ClearClip();
+    void GetClip(int *x, int *y, int *w, int *h) const;
+    int GetClipX() const;
+    int GetClipY() const;
+    int GetClipW() const;
+    int GetClipH() const;
 
     void DrawLine(int x1, int y1, int x2, int y2, uint32_t color);
     void DrawRect(int x, int y, int w, int h, uint32_t color);
@@ -334,6 +341,7 @@ private:
     void _SyncInputState();
     void _SetPixelFast(int x, int y, uint32_t color);
     void _DrawHLine(int x1, int x2, int y, uint32_t color);
+    bool _ClipRectToCurrentClip(int *x0, int *y0, int *x1, int *y1) const;
     int _AllocSpriteSlot();
     void _DrawSpriteAreaFast(int id, int x, int y, int sx, int sy, int sw, int sh, int flags);
     void _DrawSpriteAreaScaled(int id, int x, int y, int sx, int sy, int sw, int sh,
@@ -364,6 +372,10 @@ private:
     std::string _title;
     int _width;
     int _height;
+    int _clipX;
+    int _clipY;
+    int _clipW;
+    int _clipH;
 
     uint32_t *_framebuffer;
 
@@ -854,6 +866,10 @@ GameLib::GameLib()
     _title = "";
     _width = 0;
     _height = 0;
+    _clipX = 0;
+    _clipY = 0;
+    _clipW = 0;
+    _clipH = 0;
     _framebuffer = NULL;
     memset(_keys, 0, sizeof(_keys));
     memset(_keys_prev, 0, sizeof(_keys_prev));
@@ -969,6 +985,10 @@ void GameLib::_DestroyWindowResources()
     }
     _width = 0;
     _height = 0;
+    _clipX = 0;
+    _clipY = 0;
+    _clipW = 0;
+    _clipH = 0;
 }
 
 bool GameLib::_EnsureImageReady()
@@ -1285,11 +1305,7 @@ void GameLib::_BlendSurfaceToFramebuffer(int x, int y, SDL_Surface *surface)
     int y0 = y;
     int x1 = x + surface->w;
     int y1 = y + surface->h;
-    if (x0 < 0) x0 = 0;
-    if (y0 < 0) y0 = 0;
-    if (x1 > _width) x1 = _width;
-    if (y1 > _height) y1 = _height;
-    if (x0 >= x1 || y0 >= y1) return;
+    if (!_ClipRectToCurrentClip(&x0, &y0, &x1, &y1)) return;
 
     for (int py = y0; py < y1; py++) {
         const uint32_t *srcRow = (const uint32_t*)((const unsigned char*)surface->pixels + (py - y) * surface->pitch);
@@ -1399,6 +1415,7 @@ int GameLib::Open(int width, int height, const char *title, bool center)
     memset(_mouseButtons, 0, sizeof(_mouseButtons));
     memset(_mouseButtons_prev, 0, sizeof(_mouseButtons_prev));
     _mouseWheelDelta = 0;
+    ClearClip();
 
     _perfFrequency = (uint64_t)SDL_GetPerformanceFrequency();
     if (_perfFrequency == 0) _perfFrequency = 1;
@@ -1632,15 +1649,21 @@ int GameLib::ShowMessage(const char *text, const char *title, int buttons)
 
 void GameLib::Clear(uint32_t color)
 {
-    if (!_framebuffer) return;
-    size_t count = (size_t)_width * _height;
-    for (size_t i = 0; i < count; i++) _framebuffer[i] = color;
+    if (!_framebuffer || _clipW <= 0 || _clipH <= 0) return;
+    int clipX1 = _clipX + _clipW;
+    int clipY1 = _clipY + _clipH;
+    for (int y = _clipY; y < clipY1; y++) {
+        uint32_t *row = _framebuffer + y * _width;
+        for (int x = _clipX; x < clipX1; x++) {
+            row[x] = color;
+        }
+    }
 }
 
 void GameLib::SetPixel(int x, int y, uint32_t color)
 {
     if (!_framebuffer) return;
-    if (x >= 0 && x < _width && y >= 0 && y < _height) {
+    if (x >= _clipX && x < _clipX + _clipW && y >= _clipY && y < _clipY + _clipH) {
         _gamelib_blend_pixel(_framebuffer + y * _width + x, color);
     }
 }
@@ -1652,6 +1675,81 @@ uint32_t GameLib::GetPixel(int x, int y) const
         return _framebuffer[y * _width + x];
     }
     return 0;
+}
+
+void GameLib::SetClip(int x, int y, int w, int h)
+{
+    if (_width <= 0 || _height <= 0 || w <= 0 || h <= 0) {
+        _clipX = 0;
+        _clipY = 0;
+        _clipW = 0;
+        _clipH = 0;
+        return;
+    }
+
+    int64_t x0 = (int64_t)x;
+    int64_t y0 = (int64_t)y;
+    int64_t x1 = x0 + (int64_t)w;
+    int64_t y1 = y0 + (int64_t)h;
+
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > _width) x1 = _width;
+    if (y1 > _height) y1 = _height;
+
+    if (x0 >= x1 || y0 >= y1) {
+        _clipX = 0;
+        _clipY = 0;
+        _clipW = 0;
+        _clipH = 0;
+        return;
+    }
+
+    _clipX = (int)x0;
+    _clipY = (int)y0;
+    _clipW = (int)(x1 - x0);
+    _clipH = (int)(y1 - y0);
+}
+
+void GameLib::ClearClip()
+{
+    if (_width <= 0 || _height <= 0) {
+        _clipX = 0;
+        _clipY = 0;
+        _clipW = 0;
+        _clipH = 0;
+        return;
+    }
+    _clipX = 0;
+    _clipY = 0;
+    _clipW = _width;
+    _clipH = _height;
+}
+
+void GameLib::GetClip(int *x, int *y, int *w, int *h) const
+{
+    if (x) *x = _clipX;
+    if (y) *y = _clipY;
+    if (w) *w = _clipW;
+    if (h) *h = _clipH;
+}
+
+int GameLib::GetClipX() const { return _clipX; }
+int GameLib::GetClipY() const { return _clipY; }
+int GameLib::GetClipW() const { return _clipW; }
+int GameLib::GetClipH() const { return _clipH; }
+
+bool GameLib::_ClipRectToCurrentClip(int *x0, int *y0, int *x1, int *y1) const
+{
+    if (_clipW <= 0 || _clipH <= 0) return false;
+
+    int clipX1 = _clipX + _clipW;
+    int clipY1 = _clipY + _clipH;
+    if (*x0 < _clipX) *x0 = _clipX;
+    if (*y0 < _clipY) *y0 = _clipY;
+    if (*x1 > clipX1) *x1 = clipX1;
+    if (*y1 > clipY1) *y1 = clipY1;
+    return *x0 < *x1 && *y0 < *y1;
 }
 
 void GameLib::_SetPixelFast(int x, int y, uint32_t color)
@@ -1678,11 +1776,12 @@ void GameLib::DrawLine(int x1, int y1, int x2, int y2, uint32_t color)
 
 void GameLib::_DrawHLine(int x1, int x2, int y, uint32_t color)
 {
-    if (!_framebuffer) return;
-    if (y < 0 || y >= _height) return;
+    if (!_framebuffer || _clipW <= 0 || _clipH <= 0) return;
+    if (y < _clipY || y >= _clipY + _clipH) return;
     if (x1 > x2) { int t = x1; x1 = x2; x2 = t; }
-    if (x1 < 0) x1 = 0;
-    if (x2 >= _width) x2 = _width - 1;
+    if (x1 < _clipX) x1 = _clipX;
+    if (x2 >= _clipX + _clipW) x2 = _clipX + _clipW - 1;
+    if (x1 > x2) return;
     uint32_t *row = _framebuffer + y * _width;
     if (COLOR_GET_A(color) == 255) {
         for (int x = x1; x <= x2; x++) {
@@ -1714,11 +1813,7 @@ void GameLib::FillRect(int x, int y, int w, int h, uint32_t color)
     int y1 = y;
     int x2 = x + w;
     int y2 = y + h;
-    if (x1 < 0) x1 = 0;
-    if (y1 < 0) y1 = 0;
-    if (x2 > _width) x2 = _width;
-    if (y2 > _height) y2 = _height;
-    if (x1 >= x2 || y1 >= y2) return;
+    if (!_ClipRectToCurrentClip(&x1, &y1, &x2, &y2)) return;
 
     bool opaque = COLOR_GET_A(color) == 255;
 
@@ -2221,11 +2316,16 @@ void GameLib::_DrawSpriteAreaFast(int id, int x, int y, int sx, int sy, int sw, 
 
     int localX0 = 0, localX1 = sw;
     int localY0 = 0, localY1 = sh;
+    int clipX0 = _clipX;
+    int clipY0 = _clipY;
+    int clipX1 = _clipX + _clipW;
+    int clipY1 = _clipY + _clipH;
 
-    if (x < 0) localX0 = -x;
-    if (y < 0) localY0 = -y;
-    if (x + sw > _width) localX1 = _width - x;
-    if (y + sh > _height) localY1 = _height - y;
+    if (_clipW <= 0 || _clipH <= 0) return;
+    if (x < clipX0) localX0 = clipX0 - x;
+    if (y < clipY0) localY0 = clipY0 - y;
+    if (x + sw > clipX1) localX1 = clipX1 - x;
+    if (y + sh > clipY1) localY1 = clipY1 - y;
 
     if (!flipH) {
         if (sx < 0) localX0 = (localX0 > -sx) ? localX0 : -sx;
@@ -2332,10 +2432,7 @@ void GameLib::_DrawSpriteAreaScaled(int id, int x, int y, int sx, int sy, int sw
     int dx1 = x + dw;
     int dy1 = y + dh;
 
-    if (dx0 < 0) dx0 = 0;
-    if (dy0 < 0) dy0 = 0;
-    if (dx1 > _width) dx1 = _width;
-    if (dy1 > _height) dy1 = _height;
+    if (!_ClipRectToCurrentClip(&dx0, &dy0, &dx1, &dy1)) return;
     if (dx0 >= dx1 || dy0 >= dy1) return;
 
     bool flipH = (flags & SPRITE_FLIP_H) != 0;
@@ -3077,12 +3174,17 @@ void GameLib::DrawTilemap(int mapId, int x, int y, int flags)
     int tsCols = tset.width / ts;
     int tileCount = _GetTilesetTileCount(tsId, ts);
     tm.tilesetCols = tsCols;
-    if (tsCols <= 0 || tileCount <= 0) return;
+    if (tsCols <= 0 || tileCount <= 0 || _clipW <= 0 || _clipH <= 0) return;
 
-    int col0 = (-x) / ts;
-    int row0 = (-y) / ts;
-    int col1 = (-x + _width - 1) / ts + 1;
-    int row1 = (-y + _height - 1) / ts + 1;
+    int clipX0 = _clipX;
+    int clipY0 = _clipY;
+    int clipX1 = _clipX + _clipW;
+    int clipY1 = _clipY + _clipH;
+
+    int col0 = (clipX0 - x) / ts;
+    int row0 = (clipY0 - y) / ts;
+    int col1 = (clipX1 - 1 - x) / ts + 1;
+    int row1 = (clipY1 - 1 - y) / ts + 1;
     if (col0 < 0) col0 = 0;
     if (row0 < 0) row0 = 0;
     if (col1 > tm.cols) col1 = tm.cols;
@@ -3108,10 +3210,10 @@ void GameLib::DrawTilemap(int mapId, int x, int y, int flags)
 
             if (canMemcpyTiles) {
                 int ix0 = 0, iy0 = 0, ix1 = ts, iy1 = ts;
-                if (dstX0 < 0) ix0 = -dstX0;
-                if (dstY0 < 0) iy0 = -dstY0;
-                if (dstX0 + ix1 > _width) ix1 = _width - dstX0;
-                if (dstY0 + iy1 > _height) iy1 = _height - dstY0;
+                if (dstX0 < clipX0) ix0 = clipX0 - dstX0;
+                if (dstY0 < clipY0) iy0 = clipY0 - dstY0;
+                if (dstX0 + ix1 > clipX1) ix1 = clipX1 - dstX0;
+                if (dstY0 + iy1 > clipY1) iy1 = clipY1 - dstY0;
                 if (ix0 >= ix1 || iy0 >= iy1) continue;
 
                 int copyPixels = ix1 - ix0;
