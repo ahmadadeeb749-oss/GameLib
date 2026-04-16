@@ -2043,15 +2043,15 @@ void GameLib::Screenshot(const char *filename)
     fh[4] = (unsigned char)(fileSize >> 16); fh[5] = (unsigned char)(fileSize >> 24);
     fh[10] = 14 + 40;
 
-    // BMP info header (40 bytes)
+    // BMP info header (40 bytes): BITMAPINFOHEADER layout
     unsigned char ih[40];
     memset(ih, 0, 40);
-    ih[4]  = 40;
-    ih[8]  = (unsigned char)(_width);       ih[9]  = (unsigned char)(_width >> 8);
-    ih[10] = (unsigned char)(_width >> 16);  ih[11] = (unsigned char)(_width >> 24);
-    ih[12] = (unsigned char)(_height);      ih[13] = (unsigned char)(_height >> 8);
-    ih[14] = (unsigned char)(_height >> 16); ih[15] = (unsigned char)(_height >> 24);
-    ih[16] = 1; ih[18] = 24;
+    ih[0]  = 40;   // biSize
+    ih[4]  = (unsigned char)(_width);       ih[5]  = (unsigned char)(_width >> 8);
+    ih[6]  = (unsigned char)(_width >> 16);  ih[7]  = (unsigned char)(_width >> 24);
+    ih[8]  = (unsigned char)(_height);      ih[9]  = (unsigned char)(_height >> 8);
+    ih[10] = (unsigned char)(_height >> 16); ih[11] = (unsigned char)(_height >> 24);
+    ih[12] = 1; ih[14] = 24;  // biPlanes=1, biBitCount=24
     ih[20] = (unsigned char)(imageSize);     ih[21] = (unsigned char)(imageSize >> 8);
     ih[22] = (unsigned char)(imageSize >> 16); ih[23] = (unsigned char)(imageSize >> 24);
 

@@ -5,7 +5,7 @@
 //   - Shape window: lines / circles / triangles clipped by SetClip
 //   - Text window: DrawTextFont / DrawText / DrawPrintf clipped by SetClip
 //
-// Controls: <- -> or A/D move character, ESC to quit
+// Controls: <- -> or A/D move character, F12 screenshot, ESC to quit
 // Learn: SetClip, ClearClip, GetClip, DrawTilemap, DrawSpriteEx,
 //        DrawTextFont, DrawText, DrawLine, FillCircle, FillTriangle
 //
@@ -245,6 +245,7 @@ int main()
         game.DrawRect(TEXT_X - 1, TEXT_Y - 1, TEXT_W + 2, TEXT_H + 2, COLOR_WHITE);
         game.DrawText(TEXT_X + 8, TEXT_Y + 8, "Text Clip", COLOR_WHITE);
 
+        if (game.IsKeyPressed(KEY_F12)) game.Screenshot("screenshot.bmp");
         if (game.IsKeyPressed(KEY_ESCAPE)) break;
         game.Update();
         game.WaitFrame(60);
