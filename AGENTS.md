@@ -5,96 +5,127 @@
 ## Structure
 
 ```
-- assets/      # images and audios
-- docs/        # documentations
-- examples/    # examples (01~15 统一示例，兼容 Win32 和 SDL 双后端，可作为参考和回归测试)
-- GameLib.h    # main source (Win32 主线，单头文件，所有实现都在这一个文件里)
-- GameLib.SDL.h # independent SDL product line (跨平台 SDL 版单头文件)
-- AGENTS.md    # this file
-- README.md    # project home page
+- assets/        # 图片和音效资源
+- docs/          # 文档
+- examples/      # 01~15 统一示例，兼容 Win32 和 SDL 双后端
+- GameLib.h      # Win32 主线，单头文件，零外部依赖
+- GameLib.SDL.h  # SDL 产品线，跨平台单头文件，依赖 SDL2
+- SDL2PORT.md    # SDL 版快速编译指南（依赖、命令、限制）
 ```
 
 ## Documentation
 
-```
-- docs/Manual.md              # GameLib.h 的接口说明，做游戏和改库都要先读
-- docs/GameLib.md             # GameLib.h 的技术规格、设计思路和已合并的 1.1 演进说明
-- docs/GameLib.SDL.md         # GameLib.SDL.h 的规格说明、依赖选择、兼容边界和实现决策
-```
+| 文档 | 用途 | 何时需要读 |
+|------|------|-----------|
+| `docs/Manual.md` | GameLib.h 公开 API 接口说明 | 做游戏、改公开 API 时 |
+| `docs/GameLib.md` | GameLib.h 内部设计思路与技术规格 | 改 GameLib.h 内部实现时 |
+| `docs/GameLib.SDL.md` | GameLib.SDL.h 的规格、兼容边界与实现决策 | 改 GameLib.SDL.h 时 |
+| `SDL2PORT.md` | SDL 版编译命令与当前限制（简版） | 编译 SDL 版时 |
+| `assets/sprites.md` | 精灵图资源索引（尺寸、用途、瓦片集详情） | 做游戏需要图片素材时 |
+| `assets/sound.md` | 音效资源索引（WAV 参数和用途） | 做游戏需要音效素材时 |
 
-- 以上三个文档是当前稳定行为的权威来源；如果实现发生稳定变化，应同步更新对应 spec，而不是把关键信息只留在 repo memory 或聊天记录里。
+以上文档是当前稳定行为的权威来源；如果实现发生稳定变化，应同步更新对应文档。
 
-## Assets
+## Examples
 
-```
-- assets/sprites.md # 精灵图资源索引，包含所有图片的尺寸、用途和瓦片集详情
-- assets/sound.md   # 音效资源索引，包含所有 WAV 音效的参数和用途说明
-```
+`examples/` 下的 15 个示例通过预处理器自动选择 Win32 或 SDL 后端，按功能渐进排列：
+
+| 示例 | 主题 |
+|------|------|
+| `01_hello.cpp` | 窗口创建、文字显示 |
+| `02_movement.cpp` | 键盘移动、物理反弹、碰撞 |
+| `03_shapes.cpp` | 图元绘制（椭圆、三角形、Alpha 混合） |
+| `04_paint.cpp` | 鼠标输入、简易画板 |
+| `05_sprites.cpp` | 精灵基础、帧动画、方向移动 |
+| `06_sound.cpp` | 音效、背景音乐、PlayBeep |
+| `07_shooting.cpp` | 射击、子弹、碰撞检测 |
+| `08_breakout.cpp` | 打砖块（碰撞、清版） |
+| `09_snake.cpp` | 贪吃蛇（网格离散移动） |
+| `10_tilemap.cpp` | 双层 Tilemap、视差滚动、摄像机跟随 |
+| `11_font_text.cpp` | TTF 字体渲染、文本测量、消息框 |
+| `12_sprite_transform.cpp` | 精灵缩放、旋转 |
+| `13_clip_rect.cpp` | 裁剪矩形 |
+| `14_space_shooter.cpp` | 完整小游戏（敌人、编队、计分） |
+| `15_ui_controls.cpp` | Button、Checkbox、RadioBox、ToggleButton |
 
 ## Build
 
 ### Win32 主线（GameLib.h）
 
-编译只需要一条命令，不需要 Makefile 或其他构建工具：
-
 ```bash
 g++ -o output.exe source.cpp -mwindows
 ```
 
-- `-mwindows` 使程序以 Windows 窗口模式运行（不弹出控制台）。
-- 不需要 `-lwinmm -lgdi32` 等链接参数，GameLib.h 通过动态加载解决所有依赖。
-- 源文件通过 `#include "GameLib.h"` 引入即可，确保路径正确。
+- 不需要 `-lwinmm -lgdi32` 等参数，GameLib.h 通过动态加载解决所有依赖。
+- 源文件通过 `#include "GameLib.h"` 引入即可。
 
 ### SDL 产品线（GameLib.SDL.h）
 
-- SDL 版不是"只加一个 include 就能沿用同一条编译命令"的变体；构建命令以 `docs/GameLib.SDL.md` 的 3.5 节为准。
-- 只启用 SDL2 核心能力时，可参考最小命令：`g++ -std=c++11 -O2 -o game.exe main.cpp -lSDL2`
-- 若启用了 `SDL2_image` / `SDL2_ttf` / `SDL2_mixer`，需要按 `docs/GameLib.SDL.md` 同时链接对应库。
+最小命令（只启用 SDL2 核心）：
 
-## Requirements
+```bash
+g++ -std=c++11 -O2 -DUSE_SDL=1 -o game.exe main.cpp -lSDL2
+```
 
-- 单个头文件实现所有内容，没有任何依赖，通过 include 就能使用。
-- 使用 Dev-Cpp 5 里自带的 gcc 4.9.2 也能编译。
-- 动态加载方式避免编译引入额外的 -lwinmm -lgdi32 等参数。
-- 包括：窗口管理，二级缓存，输入输出，图形绘制，精灵，声音，文字等功能。
+启用 `SDL2_image` / `SDL2_ttf` / `SDL2_mixer` 时需要同时链接对应库。完整编译命令见 `SDL2PORT.md`。
 
 ## Code Constraints
 
-修改 GameLib.h 时必须遵守以下约束：
+### GameLib.h（Win32 主线）
 
 - 只能使用 C++11 语法，不能用 C++14/17/20 特性（如 `auto` 返回类型推导、`std::make_unique`、结构化绑定等）。
-- 必须兼容 GCC 4.9.2，避免该编译器不支持的特性。
+- 必须兼容 GCC 4.9.2（Dev-C++ 5 自带）。
 - 所有 Windows API 通过 `LoadLibrary`/`GetProcAddress` 动态加载，禁止直接链接。
 - 禁止引入外部依赖，所有功能在单个头文件内实现。
 - 保持 `GameLib game; game.Open(...); while (...) { ... }` 的上手模型不变。
 - 精灵和 Tilemap 使用整数 ID 管理，不引入对象生命周期负担。
 
+### GameLib.SDL.h（SDL 产品线）
+
+- C++11 基线，不要求兼容 GCC 4.9.2。
+- 允许依赖 SDL2 及其可选扩展（SDL2_image / SDL2_ttf / SDL2_mixer），但禁止引入 SDL 生态外的依赖。
+- 保持软件 framebuffer 语义：所有绘制写入 `uint32_t* _framebuffer`，SDL renderer 只负责最终提交。
+- 公开 API 风格与 GameLib.h 尽量一致，两者不能在同一翻译单元中共存。
+- 两条产品线约束独立，修改时不要混为一谈。
+
 ## Guidelines
 
 ### 通用 agent 工作方式
 
-- 先看 spec 再下手：公开 API 先看 `docs/Manual.md`，Win32 内部决策看 `docs/GameLib.md`，SDL 内部决策看 `docs/GameLib.SDL.md`。
-- 搜索或 review 时优先忽略 `examples/` 下已有的 `.exe` / `.o` 编译产物，除非用户明确要分析构建输出。
-- 若修改的是稳定行为、接口语义、回归入口或产品线边界，同一个改动里同步更新对应文档。
+- 先看上面 Documentation 表格中对应场景的文档再下手，不需要每次都读所有文档。
+- 搜索或 review 时忽略 `examples/` 下的 `.exe` / `.o` 编译产物。
+- 若修改涉及稳定行为、接口语义或产品线边界，同一个改动里同步更新对应文档。
 
 ### 用 GameLib.h 做游戏
 
-- 先完整阅读 docs/Manual.md（接口说明）和 docs/GameLib.md（设计思路），确保理解 GameLib.h 的用法。
-- 阅读 assets/sprites.md 和 assets/sound.md，了解可用的图片和音效资源，优先使用现有素材。
-- 参考 examples/ 目录下的示例代码（从 01_hello.cpp 到 15_ui_controls.cpp），它们按功能渐进排列，涵盖窗口、图形、精灵、动画、声音、Tilemap、裁剪矩形、字体、缩放、旋转与 UI 控件等主题。每个示例通过预处理器自动选择 Win32 或 SDL 后端。
-- 游戏文件放在 examples/ 目录下，通过 `#include "../GameLib.h"` 或 `#include "../GameLib.SDL.h"` 引入。
+1. 阅读 `docs/Manual.md` 了解公开 API。
+2. 阅读 `assets/sprites.md` 和 `assets/sound.md`，优先使用现有素材。
+3. 参考上方 Examples 表格，找到与目标功能最接近的示例作为起点。
+4. 游戏文件放在 `examples/` 目录下，通过 `#include "../GameLib.h"` 引入。
 
 ### 迭代 GameLib.h
 
-- 先阅读 docs/GameLib.md，确认当前设计思路、技术约束、回归策略和最近已固化的实现决策；涉及核心子系统时再深入对应源码块。
-- 若改动涉及公开 API 或稳定行为，同步检查 docs/Manual.md 和 docs/GameLib.md 是否需要更新。
-- 修改后必须遵守 Code Constraints 中的所有约束。
-- 修改后优先用 `examples/` 下的相关示例做回归验证，确保编译通过且功能正常。
+1. 先阅读 `docs/GameLib.md` 中与改动相关的章节（不需要每次通读全文）。
+2. 若改动涉及公开 API，同步检查 `docs/Manual.md` 和 `docs/GameLib.md`。
+3. 修改后必须遵守上方 Code Constraints（Win32 主线）。
+4. 用 `examples/` 下的相关示例做回归验证（参考 Examples 表格选择对应主题）。
 
 ### 迭代 GameLib.SDL.h
 
-- `GameLib.SDL.h` 是独立 SDL 产品线，不替代 `GameLib.h` 的 Win32 零依赖主线；修改时不要把两者的约束混为一谈。
-- 先阅读 `docs/GameLib.SDL.md`，确认 SDL 版的目标平台、可选依赖、兼容边界、当前实现状态和回归顺序。
-- 修改 `GameLib.SDL.h` 时优先保持 `GameLib` 风格 API 与软件 framebuffer 语义不变。
-- 若改动涉及稳定行为、构建方式或兼容边界，同步更新 `docs/GameLib.SDL.md`。
-- 修改后优先用 `examples/` 下的统一示例做回归验证（01~15 已通过预处理器兼容 Win32 和 SDL 双后端），覆盖基础绘制、图元、精灵、动画、字体、音频、Tilemap、裁剪矩形、缩放、旋转与 UI 控件等路径。
+1. 先阅读 `docs/GameLib.SDL.md` 中与改动相关的章节。
+2. 若改动涉及稳定行为或构建方式，同步更新 `docs/GameLib.SDL.md`。
+3. 修改后必须遵守上方 Code Constraints（SDL 产品线）。
+4. 用 `examples/` 下的统一示例做回归验证（参考 Examples 表格选择对应主题）。
+
+### 回归验证速查
+
+改动涉及哪个领域，优先编译并运行对应示例：
+
+- **图形与图元**：`01`、`03`、`13`
+- **精灵与动画**：`05`、`12`
+- **字体与文本**：`11`
+- **音频**：`06`
+- **Tilemap**：`10`
+- **输入与碰撞**：`02`、`04`、`07`
+- **游戏循环（综合）**：`08`、`09`、`14`
+- **UI 控件**：`15`
