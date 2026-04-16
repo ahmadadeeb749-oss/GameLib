@@ -154,7 +154,8 @@ SDL 版实现上，要求在 `SDL_Init()` 之前设置 Windows DPI awareness 提
 - `GAMELIB_SDL_DISABLE_IMAGE=1` 时，`LoadSprite()` 的非 BMP 扩展格式支持会被关闭。
 - `GAMELIB_SDL_DISABLE_TTF=1` 时，`DrawTextFont()` 和字体测量函数会退化为不可用状态。
 - `GAMELIB_SDL_DISABLE_MIXER=1` 时，`PlayWAV()` / `PlayMusic()` 的高层 SDL_mixer 路径会被关闭，但 `PlayBeep()` 仍可走 plain SDL 音频兜底。
-- 若走“无扩展头但仍保留类型名”的前向声明路径，`TTF_Font`、`Mix_Chunk`、`Mix_Music` 的 typedef tag 必须与 SDL 官方头完全一致（如 `typedef struct TTF_Font TTF_Font;`），否则 MinGW 可能报 conflicting declaration。
+- SDL 头文件（包括 `SDL.h` 及检测到的扩展头）在 `GameLib.SDL.h` 的类声明之前就被包含，不再依赖 `#ifdef GAMELIB_SDL_IMPLEMENTATION` 保护；这样类声明可以直接使用真实 SDL 类型，而不是依赖跨平台容易冲突的前向声明。
+- 若某个扩展头未找到（`GAMELIB_SDL_HAS_* = 0`），库会在类声明前按 SDL 官方 typedef tag 约定（如 `_TTF_Font`、`_Mix_Music`）提供条件前向声明，确保指针成员的类型完整性。
 
 ### 3.2 关于音频库的决策
 
@@ -190,6 +191,11 @@ SDL 版实现上，要求在 `SDL_Init()` 之前设置 Windows DPI awareness 提
 自动定义逻辑建议为：
 
 - 若未定义 `GAMELIB_SDL_NO_IMPLEMENTATION`，则自动定义 `GAMELIB_SDL_IMPLEMENTATION`。
+
+说明：
+
+- `GAMELIB_SDL_IMPLEMENTATION` 控制的是函数实现代码是否被编译；SDL 头文件包含和扩展库检测始终在类声明之前完成，不受此宏影响。
+- 因此即使是 `GAMELIB_SDL_NO_IMPLEMENTATION` 的翻译单元也会拉入 SDL 头文件；这是为了避免使用跨平台不一致的前向声明，代价是多文件项目中各翻译单元都会间接包含 SDL 头文件。对于教学型单文件项目这一代价无感；若多文件项目需要最小化头文件依赖，可以按 3.1 节用 `GAMELIB_SDL_DISABLE_*` 宏关闭不需要的扩展。
 
 ### 3.4 与 GameLib.h 的共存规则
 
@@ -297,7 +303,12 @@ GameLib.SDL.h
 ├── 文件头注释与使用示例
 ├── #ifndef GAMELIB_SDL_H / #define GAMELIB_SDL_H
 ├── IMPLEMENTATION 自动定义逻辑
-├── SDL 头文件与基础标准库头文件
+├── 基础标准库头文件
+├── SDL 头文件包含与扩展库检测
+│   ├── SDL.h 包含
+│   ├── SDL_image / SDL_ttf / SDL_mixer 检测与包含
+│   └── GAMELIB_SDL_HAS_* 宏定义
+│   └── 条件前向声明（仅当扩展头未找到时）
 ├── 常量定义
 │   ├── 颜色常量
 │   ├── GameLib 自有键值常量
@@ -1017,6 +1028,6 @@ static bool _srandDone;
 - 选择 `SDL_mixer` 而不是纯 `SDL_Audio`，是为了让 `PlayWAV` / `PlayMusic` 这类高层 API 更快落地。
 - `PlayBeep` 优先复用 `SDL_mixer`，失败时再回退到 plain SDL queued audio，但整体仍保持阻塞式调用；这样更接近 Win32 版“提示音期间短暂停一下”的教学预期。
 - 字体部分不把“系统字体家族名跨平台精确解析”列为首版硬要求，是为了控制复杂度，避免一开始就把 Win32 / macOS / Linux 的字体发现机制都卷进来。
-- 可选 SDL 扩展类型的前向声明必须复用 SDL 官方 typedef tag；这是为了兼容 MinGW，对外看起来只是声明细节，但改错会直接导致编译冲突。
+- SDL 头文件包含和扩展库检测放在类声明之前、不受 `GAMELIB_SDL_IMPLEMENTATION` 保护；这样类声明直接使用真实 SDL 类型，不再依赖跨平台不一致的前向声明。条件前向声明仅在扩展头未找到时（`GAMELIB_SDL_HAS_* = 0`）才会生效，且使用 SDL 官方 typedef tag 约定（如 `_TTF_Font`、`_Mix_Music`），避免与后续外部包含冲突。
 - Tilemap 不再缓存 `tilesetTileCount`，而是由 `DrawTilemap()` 在 memcpy 风险点前按 live sprite 尺寸即时计算 `tileCount`；这样既减少内部状态，又保持 sprite 槽位复用后的内存安全。
 - Windows DPI 默认选择 `unaware`，不是因为它技术上更先进，而是因为它更符合教学场景：同样一个 `800x600` 示例换到高分屏机器上不会显得过小。
