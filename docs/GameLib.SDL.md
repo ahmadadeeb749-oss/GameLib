@@ -27,7 +27,7 @@ int main() {
 
 本文档既用于固定 `GameLib.SDL.h` 的定位、依赖、内部架构与兼容边界，也用于同步当前实现状态、已知差异与后续演进边界。
 
-当前 `1.8.1` 已加入与 Win32 主线对齐的 Clip Rectangle 裁剪接口；所有最终写入 `_framebuffer` 的绘制路径都会受当前裁剪矩形约束，空裁剪区域时统一不绘制；`DrawLine()` 会在 Bresenham 前先裁剪线段，`LoadSprite()` 也会拒绝超出 `16384` 限制的图片。最新还加入了与 Win32 版一致的独立旋转绘制（`DrawSpriteRotated` / `DrawSpriteFrameRotated`，中心点语义，最近邻采样）、场景管理（`SetScene`/`GetScene`/`IsSceneChanged`/`GetPreviousScene`）和存档读写（`SaveInt`/`LoadInt` 等 9 个 static 函数，纯文本 `key=value` 格式；SDL 版使用标准 `fopen()` 替代 Win32 版的 `_gamelib_fopen_utf8()`），以及固定 framebuffer + 可选可缩放窗口：`Open()` 决定逻辑 framebuffer 尺寸，`Update()` 在窗口客户区与 framebuffer 尺寸不同时自动缩放填满，鼠标位置则反算为 framebuffer 逻辑坐标。
+当前 `1.8.1` 已加入与 Win32 主线对齐的 Clip Rectangle 裁剪接口；所有最终写入 `_framebuffer` 的绘制路径都会受当前裁剪矩形约束，空裁剪区域时统一不绘制；`DrawLine()` 会在 Bresenham 前先裁剪线段，`LoadSprite()` 也会拒绝超出 `16384` 限制的图片。最新还加入了与 Win32 版一致的独立旋转绘制（`DrawSpriteRotated` / `DrawSpriteFrameRotated`，中心点语义，最近邻采样）、场景管理（`SetScene`/`GetScene`/`IsSceneChanged`/`GetPreviousScene`）和存档读写（`SaveInt`/`LoadInt` 等 9 个 static 函数，纯文本 `key=value` 格式，按每行第一个 `=` 切分，value 可以包含 `=`，但 key 不能为空且不能包含 `=`、回车或换行；SDL 版使用标准 `fopen()` 替代 Win32 版的 `_gamelib_fopen_utf8()`），以及固定 framebuffer + 可选可缩放窗口：`Open()` 决定逻辑 framebuffer 尺寸，`Update()` 在窗口客户区与 framebuffer 尺寸不同时自动缩放填满，鼠标位置则反算为 framebuffer 逻辑坐标。
 
 若你只想快速查看 SDL 版的编译命令、依赖开关和当前限制，可直接看仓库根目录的 `SDL2PORT.md`。
 
@@ -423,6 +423,8 @@ GameLib.SDL.h
 
 - API 签名和语义与 Win32 版完全一致，所有存档函数仍为 `static`。
 - 文件格式相同：`GAMELIB_SAVE` 头 + `key=value` 行，字符串转义规则不变。
+- 每行按第一个 `=` 切分 key/value，因此 value 可以包含 `=`。
+- key 不能为空，且不能包含 `=`、回车或换行。
 - **唯一实现差异**：SDL 版使用标准 `fopen()` 打开文件，而 Win32 版使用 `_gamelib_fopen_utf8()`。这意味着在 Windows + MinGW 环境下，如果存档路径包含非 ASCII 字符（如中文目录），SDL 版可能无法正确打开文件。在 macOS / Linux 上，系统 locale 通常默认 UTF-8，不受此限制。
 
 ### 6.3 键盘常量策略
@@ -1066,5 +1068,5 @@ static bool _srandDone;
 - Tilemap 不再缓存 `tilesetTileCount`，而是由 `DrawTilemap()` 在 memcpy 风险点前按 live sprite 尺寸即时计算 `tileCount`；这样既减少内部状态，又保持 sprite 槽位复用后的内存安全。
 - Windows DPI 默认选择 `unaware`，不是因为它技术上更先进，而是因为它更符合教学场景：同样一个 `800x600` 示例换到高分屏机器上不会显得过小。
 - 场景管理的延迟生效机制（pending → 下一帧 `Update()` 应用）与 Win32 版完全一致，不引入 SDL 特有的事件时序差异。
-- 存档读写 SDL 版使用标准 `fopen()` 而非 Win32 版的 `_gamelib_fopen_utf8()`；这是因为 SDL 产品线本身不携带 Win32 宽字符路径转换逻辑，而 macOS / Linux 系统 locale 通常默认 UTF-8，标准 `fopen()` 即可正确处理。在 Windows + MinGW 下若路径含非 ASCII 字符，可能需要用户自行确保 locale 或使用 ASCII 路径。
+- 存档读写 SDL 版使用标准 `fopen()` 而非 Win32 版的 `_gamelib_fopen_utf8()`；这是因为 SDL 产品线本身不携带 Win32 宽字符路径转换逻辑，而 macOS / Linux 系统 locale 通常默认 UTF-8，标准 `fopen()` 即可正确处理。在 Windows + MinGW 下若路径含非 ASCII 字符，可能需要用户自行确保 locale 或使用 ASCII 路径。除路径策略外，key/value 语义与 Win32 版保持一致：按每行第一个 `=` 切分，value 可以包含 `=`，但 key 不能为空且不能包含 `=`、回车或换行。
 - 存档实现放在文件末尾 `#endif` 前，与 Win32 版保持一致的代码组织策略，避免在渲染代码中间插入大段无关实现。

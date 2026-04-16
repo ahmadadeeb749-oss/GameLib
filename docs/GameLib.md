@@ -326,6 +326,7 @@ static bool _srandDone; // srand 是否已初始化
 - 使用 `QueryPerformanceFrequency()` / `QueryPerformanceCounter()` 建立高精度时间基准
 - 调用 `timeBeginPeriod(1)` 改善等待粒度；若成功，会在关闭/析构时匹配调用 `timeEndPeriod(1)`
 - 尝试创建 1ms 周期的多媒体定时器事件（`CreateEventA + timeSetEvent`），供 `WaitFrame()` 更稳定地等待下一帧；若失败则自动回退到 `Sleep(1)`
+- **线程模型约束**：当前 Win32 主线按线程维度假设“一个 GameLib 窗口 + 一个 GameLib 主循环”。同一线程里不要同时创建多个 `GameLib` 窗口，也不要把 `GameLib::Update()` 的消息循环和宿主自己的独立消息循环并行驱动；当前实现会直接消费该线程的消息队列，并在 `WM_DESTROY` 时投递 `WM_QUIT`
 
 #### `void WinResize(int width, int height)`
 - 设置窗口客户区尺寸，`width/height` 始终表示客户区，不改变 framebuffer 尺寸
@@ -817,6 +818,10 @@ static bool _srandDone; // srand 是否已初始化
 
 所有存档函数都是 `static` 的，可以通过 `GameLib::SaveInt(...)` 直接调用，不需要 GameLib 实例。
 
+- `filename` 按 UTF-8 路径解释；Win32 版统一转宽字符路径打开和删除文件
+- `key` 不能为空，且不能包含 `=`、`\r` 或 `\n`
+- 每行按第一个 `=` 切分 key/value，因此 value 可以包含 `=`
+
 #### `static bool SaveInt(const char *filename, const char *key, int value)`
 - 将整数写入存档文件的指定 key
 - 若文件不存在则创建；若 key 已存在则覆盖
@@ -869,9 +874,10 @@ level=3
 ```
 
 - 第一行固定为 `GAMELIB_SAVE` 魔数头
-- 后续每行为 `key=value` 格式
+- 后续每行为 `key=value` 格式，解析时按第一个 `=` 切分
+- key 不能为空，且不能包含 `=`、回车或换行
 - 字符串值中的 `\` 和换行符会转义存储
-- Win32 版使用 `_gamelib_fopen_utf8()` 打开文件，支持 UTF-8 文件路径
+- Win32 版使用 `_gamelib_fopen_utf8()` 打开文件，`DeleteSave()` 也按 UTF-8 路径删除文件
 
 ---
 
@@ -1069,9 +1075,10 @@ int main() {
 | `PlayMusic` 使用 `mciSendStringW` + 路径过滤 | 路径支持 UTF-8；拒绝引号和换行，避免 MCI 字符串命令注入 |
 | 场景切换延迟到下一帧 `Update()` 生效 | 避免同一帧内输入穿透到新场景；pending 机制保证 `SetScene()` 后的当前帧逻辑完整执行 |
 | 初始帧 `_sceneChanged = true` | 方便用户在场景 0 的首帧做一次性初始化，不需要额外的 `firstFrame` 变量 |
+| Win32 主线按线程维度假设一个窗口和一个主循环 | `PeekMessage` / `PostQuitMessage` 直接作用于线程消息队列，实现简单并符合教学用法；代价是同一线程不支持多个 `GameLib` 窗口并行 |
 | 存档函数全部 `static` | 不依赖 GameLib 实例，可在任意时机（包括 `Open()` 前）调用；与 `Random()` 保持一致的调用风格 |
 | 存档文件纯文本 `key=value` 格式 | 用记事本可直接查看和编辑，便于调试；`GAMELIB_SAVE` 魔数头防止误解析其他文本文件 |
 | 字符串值仅转义 `\` 和 `\n` | 最小转义方案，其他特殊字符（tab、空格等）原样保存；保证 `key=value` 行格式不被换行符破坏 |
 | `LoadString` 返回 `static char[1024]` 指针 | 避免引入 `std::string` 返回值或手动 free，对初学者最简单；代价是下次调用覆盖，但教学场景下够用 |
-| 存档读写使用 `_gamelib_fopen_utf8` | Win32 版与精灵/音乐路径一致，支持中文文件名 |
+| 存档文件读写/删除统一使用 UTF-8 路径 | Win32 版与精灵/音乐路径一致，支持中文文件名；`DeleteSave()` 不再退回窄字符 `remove()` |
 | 存档实现放在文件末尾 `#endif` 前 | 避免在绘制/精灵/Tilemap 等核心渲染代码中间插入大量无关代码，保持中段可读性 |

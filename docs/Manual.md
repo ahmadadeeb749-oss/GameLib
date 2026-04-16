@@ -19,7 +19,7 @@
 | `ShowMouse(show)`            | 显示或隐藏窗口内鼠标光标     |
 | `ShowMessage(text, title, buttons)` | 弹出消息框，支持 `OK` 或 `YES/NO` |
 
-`Open()` 里的 `w/h` 只决定 framebuffer 逻辑尺寸；`Update()` 提交画面时，如果当前窗口客户区尺寸与 framebuffer 一致就直接提交，否则自动缩放填满整个客户区。`SetMaximized()` 仅在 `Open(..., ..., ..., ..., true)` 创建的可缩放窗口上生效；`WinResize()` 同时适用于可缩放和不可缩放窗口，参数始终表示客户区尺寸。
+`Open()` 里的 `w/h` 只决定 framebuffer 逻辑尺寸；`Update()` 提交画面时，如果当前窗口客户区尺寸与 framebuffer 一致就直接提交，否则自动缩放填满整个客户区。`SetMaximized()` 仅在 `Open(..., ..., ..., ..., true)` 创建的可缩放窗口上生效；`WinResize()` 同时适用于可缩放和不可缩放窗口，参数始终表示客户区尺寸。当前 Win32 主线按线程维度假设“一个 GameLib 窗口 + 一个 GameLib 主循环”；不要在同一线程里同时驱动多个 GameLib 窗口，也不要把 `Update()` 的消息循环和宿主自己的独立消息循环并行使用。
 
 ### 绘图
 
@@ -156,7 +156,7 @@
 | `DeleteSaveKey(filename, key)`          | 从存档中删除一个 key                               |
 | `DeleteSave(filename)`                  | 删除整个存档文件                                   |
 
-所有存档函数都是 `static` 的，可以通过 `GameLib::SaveInt(...)` 直接调用，不需要 GameLib 实例。存档文件是纯文本 `key=value` 格式（第一行固定 `GAMELIB_SAVE` 头），可以用记事本打开查看。字符串值中的换行符会自动转义为 `\n`、反斜杠转义为 `\\`，读取时自动还原。`LoadString` 返回的指针指向内部静态缓冲区（最大 1023 字符），在下次调用 `LoadString` 前有效。
+所有存档函数都是 `static` 的，可以通过 `GameLib::SaveInt(...)` 直接调用，不需要 GameLib 实例；`filename` 按 UTF-8 路径解释。存档文件是纯文本 `key=value` 格式（第一行固定 `GAMELIB_SAVE` 头），每行按第一个 `=` 切分 key/value，因此 value 可以包含 `=`，但 key 不能为空，且不能包含 `=`、回车或换行。字符串值中的换行符会自动转义为 `\n`、反斜杠转义为 `\\`，读取时自动还原。`LoadString` 返回的指针指向内部静态缓冲区（最大 1023 字符），在下次调用 `LoadString` 前有效。
 
 ### 工具
 

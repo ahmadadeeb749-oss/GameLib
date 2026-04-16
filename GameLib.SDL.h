@@ -1183,6 +1183,7 @@ static bool _gamelib_font_file_exists(const std::string &path)
     return true;
 }
 
+#if defined(_WIN32)
 static void _gamelib_push_joined_font_candidate(std::vector<std::string> &candidates,
                                                 const std::string &dir,
                                                 const char *fileName)
@@ -1199,6 +1200,7 @@ static void _gamelib_push_joined_font_candidate(std::vector<std::string> &candid
     path += fileName;
     _gamelib_push_font_candidate(candidates, path);
 }
+#endif
 
 static void _gamelib_append_platform_font_candidates(std::vector<std::string> &candidates,
                                                      const char *fontName)
@@ -3624,6 +3626,16 @@ static int _gamelib_save_find_key(const _gamelib_save_entry *entries, int count,
     return -1;
 }
 
+static bool _gamelib_save_key_is_valid(const char *key)
+{
+    if (!key || !key[0]) return false;
+
+    for (const char *p = key; *p; p++) {
+        if (*p == '=' || *p == '\r' || *p == '\n') return false;
+    }
+    return true;
+}
+
 static int _gamelib_save_read_all(const char *filename,
                                   _gamelib_save_entry *entries, int maxEntries)
 {
@@ -3678,7 +3690,7 @@ static bool _gamelib_save_write_all(const char *filename,
 static bool _gamelib_save_write_key(const char *filename, const char *key,
                                     const char *rawValue)
 {
-    if (!filename || !key || !key[0] || !rawValue) return false;
+    if (!filename || !_gamelib_save_key_is_valid(key) || !rawValue) return false;
 
     _gamelib_save_entry entries[_GAMELIB_SAVE_MAX_ENTRIES];
     int count = _gamelib_save_read_all(filename, entries, _GAMELIB_SAVE_MAX_ENTRIES);
@@ -3701,7 +3713,7 @@ static bool _gamelib_save_write_key(const char *filename, const char *key,
 
 static const char *_gamelib_save_read_key(const char *filename, const char *key)
 {
-    if (!filename || !key || !key[0]) return NULL;
+    if (!filename || !_gamelib_save_key_is_valid(key)) return NULL;
 
     static _gamelib_save_entry entries[_GAMELIB_SAVE_MAX_ENTRIES];
     int count = _gamelib_save_read_all(filename, entries, _GAMELIB_SAVE_MAX_ENTRIES);
@@ -3764,7 +3776,7 @@ bool GameLib::HasSaveKey(const char *filename, const char *key)
 
 bool GameLib::DeleteSaveKey(const char *filename, const char *key)
 {
-    if (!filename || !key || !key[0]) return false;
+    if (!filename || !_gamelib_save_key_is_valid(key)) return false;
 
     _gamelib_save_entry entries[_GAMELIB_SAVE_MAX_ENTRIES];
     int count = _gamelib_save_read_all(filename, entries, _GAMELIB_SAVE_MAX_ENTRIES);

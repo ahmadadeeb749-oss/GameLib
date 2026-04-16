@@ -4181,6 +4181,28 @@ static int _gamelib_save_find_key(const _gamelib_save_entry *entries, int count,
     return -1;
 }
 
+static bool _gamelib_save_key_is_valid(const char *key)
+{
+    if (!key || !key[0]) return false;
+
+    for (const char *p = key; *p; p++) {
+        if (*p == '=' || *p == '\r' || *p == '\n') return false;
+    }
+    return true;
+}
+
+static bool _gamelib_delete_file_utf8(const char *filename)
+{
+    if (!filename || !filename[0]) return false;
+
+    wchar_t *wideFilename = _gamelib_utf8_to_wide(filename, NULL);
+    if (!wideFilename) return false;
+
+    BOOL ok = DeleteFileW(wideFilename);
+    free(wideFilename);
+    return ok != 0;
+}
+
 static int _gamelib_save_read_all(const char *filename,
                                   _gamelib_save_entry *entries, int maxEntries)
 {
@@ -4237,7 +4259,7 @@ static bool _gamelib_save_write_all(const char *filename,
 static bool _gamelib_save_write_key(const char *filename, const char *key,
                                     const char *rawValue)
 {
-    if (!filename || !key || !key[0] || !rawValue) return false;
+    if (!filename || !_gamelib_save_key_is_valid(key) || !rawValue) return false;
 
     _gamelib_save_entry entries[_GAMELIB_SAVE_MAX_ENTRIES];
     int count = _gamelib_save_read_all(filename, entries, _GAMELIB_SAVE_MAX_ENTRIES);
@@ -4260,7 +4282,7 @@ static bool _gamelib_save_write_key(const char *filename, const char *key,
 
 static const char *_gamelib_save_read_key(const char *filename, const char *key)
 {
-    if (!filename || !key || !key[0]) return NULL;
+    if (!filename || !_gamelib_save_key_is_valid(key)) return NULL;
 
     static _gamelib_save_entry entries[_GAMELIB_SAVE_MAX_ENTRIES];
     int count = _gamelib_save_read_all(filename, entries, _GAMELIB_SAVE_MAX_ENTRIES);
@@ -4323,7 +4345,7 @@ bool GameLib::HasSaveKey(const char *filename, const char *key)
 
 bool GameLib::DeleteSaveKey(const char *filename, const char *key)
 {
-    if (!filename || !key || !key[0]) return false;
+    if (!filename || !_gamelib_save_key_is_valid(key)) return false;
 
     _gamelib_save_entry entries[_GAMELIB_SAVE_MAX_ENTRIES];
     int count = _gamelib_save_read_all(filename, entries, _GAMELIB_SAVE_MAX_ENTRIES);
@@ -4343,7 +4365,7 @@ bool GameLib::DeleteSaveKey(const char *filename, const char *key)
 bool GameLib::DeleteSave(const char *filename)
 {
     if (!filename) return false;
-    return remove(filename) == 0;
+    return _gamelib_delete_file_utf8(filename);
 }
 
 
