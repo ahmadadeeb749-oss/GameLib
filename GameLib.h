@@ -1,6 +1,7 @@
 //=====================================================================
 //
 // GameLib.h - A single-header game library for beginners
+// Homepage: https://github.com/skywind3000/GameLib
 //
 // Based on Win32 GDI, no SDL or other third-party libraries needed.
 // Works with Dev C++ (GCC 4.9.2+), can make shooting games, Tetris, 
