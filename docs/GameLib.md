@@ -261,7 +261,7 @@ int _mouseX, _mouseY;   // 鼠标坐标
 int _mouseButtons[3];   // 鼠标三键状态
 int _mouseButtons_prev[3]; // 上一帧鼠标状态（用于边沿检测）
 int _mouseWheelDelta;   // 自上次 Update() 以来累计的滚轮增量
-uint32_t _uiActiveId;   // 当前由鼠标左键按住的 UI 控件 ID（Button / Checkbox）
+uint32_t _uiActiveId;   // 当前由鼠标左键按住的 UI 控件 ID（Button / Checkbox / RadioBox / ToggleButton）
 
 // 时间
 uint64_t _timeStartCounter; // Open() 时的高精度计数器值
@@ -489,6 +489,24 @@ static bool _srandDone; // srand 是否已初始化
 - 点击区域覆盖 16x16 方框和右侧文字标签，便于菜单和设置页直接使用
 - 稳定状态分为 `checked`、`checked-hover`、`unchecked`、`unchecked-hover` 四种；按下时叠加轻微内凹反馈
 - 选中态用中心实心块表示，而不是勾号
+
+#### `bool RadioBox(int x, int y, const char *text, int *value, int index)`
+- 立即模式单选框；默认文字同样使用内嵌 8x8 位图字体（ASCII 32~126）
+- `value` 必须为非空指针；同一组 RadioBox 共享同一个 `value` 指针，通过 `index` 区分各自编号（0, 1, 2...）
+- 当 `*value == index` 时，该项为选中态；在控件区域内松开左键时设置 `*value = index`，返回 `true` 表示发生了变更
+- 点击区域覆盖 16x16 圆形区域和右侧文字标签
+- 视觉外观为纯圆形（用 `FillCircle` 填面色 + 双层 `DrawCircle` 模拟 bevel 3D 效果），选中时在圆心绘制实心小圆点，而非 Checkbox 的方框+实心块
+- 悬停/按下时面色提亮/压暗，bevel 双层圆环自动反转；按下时整体偏移 +1,+1 模拟内凹
+- 渲染使用 `willSelect` 预判机制：在 release 帧提前计算选中状态用于绘制，避免状态翻转前的一帧视觉延迟
+
+#### `bool ToggleButton(int x, int y, int w, int h, const char *text, bool *toggled, uint32_t color)`
+- 立即模式开关按钮；默认文字始终使用内嵌 8x8 位图字体（ASCII 32~126），不走 `DrawTextFont`
+- `toggled` 必须为非空指针；函数在本帧发生开关状态变化时返回 `true`
+- 在按钮区域内松开左键时翻转 `*toggled`
+- `*toggled == true` 时按钮持续显示凹陷外观（立体边框反转 + 面色压暗 + 文字偏移 +1,+1），与普通 Button 的按下态视觉一致，但凹陷是稳定状态而非瞬时
+- `*toggled == false` 时按钮显示正常凸起外观
+- 视觉状态分为 `normal`、`hover`、`toggled`、`toggled-hover` 四种；toggled+hover 时面色比 toggled 略亮
+- 渲染使用 `willToggle` 预判机制：在 release 帧提前计算翻转后的状态用于绘制，避免状态翻转前的一帧 normal 闪烁
 
 ### 6.5 字体文字渲染（当前 Windows 后端用 GDI 实现）
 

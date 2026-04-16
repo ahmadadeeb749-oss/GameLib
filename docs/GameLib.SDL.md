@@ -353,7 +353,7 @@ GameLib.SDL.h
 - `GetClipX` / `GetClipY` / `GetClipW` / `GetClipH`
 - `DrawLine` / `DrawRect` / `FillRect` / `DrawCircle` / `FillCircle` / `DrawEllipse` / `FillEllipse` / `DrawTriangle` / `FillTriangle`
 - `DrawText` / `DrawNumber` / `DrawTextScale` / `DrawPrintf`
-- `Button` / `Checkbox`
+- `Button` / `Checkbox` / `RadioBox` / `ToggleButton`
 - `CreateSprite` / `LoadSpriteBMP` / `LoadSprite` / `FreeSprite`
 - `DrawSprite` / `DrawSpriteEx` / `DrawSpriteRegion` / `DrawSpriteRegionEx`
 - `DrawSpriteScaled` / `DrawSpriteRotated` / `DrawSpriteFrame` / `DrawSpriteFrameScaled` / `DrawSpriteFrameRotated`
@@ -583,8 +583,9 @@ SDL 版输入系统要求：
 - `DrawText` / `DrawNumber` / `DrawTextScale` / `DrawPrintf` 的内置位图字体逻辑应与 `GameLib.h` 保持一致。
 - 继续使用 ASCII 32~126 的 8x8 点阵数据。
 - 这是 SDL 版始终可用的零外部字体方案。
-- `Button` / `Checkbox` 的标签也固定走这套内置 8x8 字体，因此即使 `SDL_ttf` 被关闭，这两个基础 UI 控件仍然可用。
+- `Button` / `Checkbox` / `RadioBox` / `ToggleButton` 的标签也固定走这套内置 8x8 字体，因此即使 `SDL_ttf` 被关闭，这四个基础 UI 控件仍然可用。
 - `Button` 与 `Checkbox` 的交互语义与 Win32 版保持一致：Button 使用 `normal / hover / pressed` 三态，并在按钮内松开左键时触发；Checkbox 使用 `checked / checked-hover / unchecked / unchecked-hover` 四种稳定状态，在控件区域内松开左键时翻转 `checked` 指针指向的值并返回 `true`。
+- `RadioBox` 与 `ToggleButton` 的交互语义同样与 Win32 版保持一致：RadioBox 使用纯圆形外观（`FillCircle` 填面色 + 双层 `DrawCircle` 模拟 bevel 3D），选中时在圆心绘制实心小圆点，同组互斥由共享的 `int *value` 指针实现；ToggleButton 使用与 Button 相同的 bevel 矩形外观，`toggled` 为 `true` 时持续凹陷，状态翻转在控件区域内松开左键时触发。两者均使用 `willSelect` / `willToggle` 预判机制避免 release 帧的视觉延迟。
 
 ### 8.2 DrawTextFont 的实现原则
 
