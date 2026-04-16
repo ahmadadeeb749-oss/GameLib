@@ -81,7 +81,7 @@ int main()
     const int TEXT_W = 284;
     const int TEXT_H = 136;
 
-    if (game.Open(SW, SH, "SDL Demo 15 - Clip Rectangle Tilemap", true) != 0) {
+    if (game.Open(SW, SH, "SDL Demo 15 - Clip Rectangle Tilemap", true, true) != 0) {
         return 1;
     }
     game.ShowFps(true);
