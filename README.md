@@ -78,10 +78,12 @@ g++ main.cpp -o game.exe
 
 ### 开箱即用的绘图
 
-- 画点、线、矩形、圆、三角形（描边和填充）
+- 画点、线、矩形、圆、椭圆、三角形（描边和填充）
+- 裁剪矩形（`SetClip`/`ClearClip`），所有绘制自动受裁剪约束
 - 内嵌 8x8 像素点阵字体，支持所有可打印 ASCII 字符
 - `DrawTextFont` 支持可缩放字体和 UTF-8 文本输出
 - `DrawPrintf` 像 `printf` 一样在屏幕上格式化输出
+- `Screenshot` 一行代码把当前画面保存为 BMP 文件
 - `ShowFps(true)` 可直接在标题栏显示实时 FPS
 - 所有图形算法自行实现（Bresenham 直线、中点圆、扫描线填充）
 
@@ -90,7 +92,7 @@ g++ main.cpp -o game.exe
 - 加载 PNG、JPG、BMP、GIF 等格式
 - 支持 8-bit 调色板、24-bit、32-bit 图片（自动转换为 32 位 ARGB）
 - 24 位图片自动补全 alpha 通道（设为不透明）
-- 翻转、Color Key 透明、Alpha 混合、区域裁剪、缩放、按帧绘制
+- 翻转、Color Key 透明、Alpha 混合、区域裁剪、缩放、旋转、按帧绘制
 - 用整数 ID 管理，不需要理解指针和对象生命周期
 
 ### 键盘和鼠标
@@ -128,7 +130,33 @@ g++ main.cpp -o game.exe
 - 只绘制屏幕可见范围内的瓦片，大地图也不卡
 - 配合相机偏移轻松实现横版卷轴和视差滚动
 
+### 窗口缩放
 
+- `Open()` 第五个参数 `resizable=true` 即可创建可拖拽缩放窗口
+- Framebuffer 逻辑尺寸在 `Open` 时固定，窗口缩放时自动拉伸填满
+- `WinResize(w, h)` 程序端调整窗口大小，`SetMaximized(true)` 一键最大化
+- 鼠标坐标自动按缩放比例映射回 framebuffer 逻辑坐标
+
+### 场景管理
+
+- `SetScene` / `GetScene` / `IsSceneChanged` — 用整数标识场景，下一帧生效
+- `IsSceneChanged()` 在新场景首帧返回 `true`，方便做初始化
+- 配合 `enum` 和 `switch` 即可实现菜单 → 游戏 → 结算的多场景切换
+
+### 存档读写
+
+- `SaveInt` / `SaveFloat` / `SaveString` — 一行代码保存数据到文件
+- `LoadInt` / `LoadFloat` / `LoadString` — 一行代码读取，不存在时返回默认值
+- 静态函数，不需要 GameLib 实例即可调用
+- 纯文本 `key=value` 格式，人类可读
+
+### UI 控件
+
+- `Button` — 即时模式按钮，自动处理 hover / pressed 视觉状态
+- `Checkbox` — 复选框，点击自动翻转状态
+- `RadioBox` — 单选框，同组共享变量实现互斥
+- `ToggleButton` — 开关按钮，按下后持续凹陷
+- 使用内置 8x8 点阵字体，零依赖零配置
 
 
 ## 快速上手
@@ -307,7 +335,7 @@ int main()
 
 ## 示例程序
 
-`examples/` 目录包含 20 个由浅入深的示例，逐步展示 GameLib 的各项功能，覆盖窗口、图形、输入、精灵、声音、Tilemap、裁剪矩形、字体文字、缩放与旋转绘制。
+`examples/` 目录包含 21 个由浅入深的示例，逐步展示 GameLib 的各项功能，覆盖窗口、图形、输入、精灵、声音、Tilemap、裁剪矩形、字体文字、缩放、旋转绘制与 UI 控件。
 
 编译任意示例：
 
@@ -371,6 +399,12 @@ g++ -o 03_shapes.exe examples/03_shapes.cpp -mwindows
 | `17_sprite_scaling.cpp` | 精灵缩放绘制 | LoadSprite、DrawSpriteScaled / DrawSpriteFrameScaled、滚轮调比例 |
 | `20_sprite_rotation.cpp` | 精灵旋转绘制 | CreateSprite、DrawSpriteRotated / DrawSpriteFrameRotated、中心点旋转 |
 
+### 场景与 UI
+
+| 示例 | 说明 | 学到什么 |
+|-|-|-|
+| `21_ui_controls.cpp` | UI 控件演示 | Button、Checkbox、RadioBox、ToggleButton 即时模式 UI |
+
 
 
 
@@ -380,16 +414,20 @@ g++ -o 03_shapes.exe examples/03_shapes.cpp -mwindows
 
 | 函数 | 说明 |
 |-|-|
-| `Open(w, h, title, center)` | 创建窗口，center=true 时居中 |
+| `Open(w, h, title, center, resizable)` | 创建窗口；`w/h` 为 framebuffer 逻辑尺寸，`center=true` 居中，`resizable=true` 允许拖拽缩放 |
 | `IsClosed()` | 窗口是否关闭 |
 | `Update()` | 刷新画面、处理输入 |
 | `WaitFrame(fps)` | 帧率控制 |
-| `GetWidth()` / `GetHeight()` | 窗口尺寸 |
+| `GetWidth()` / `GetHeight()` | framebuffer 逻辑尺寸 |
+| `WinResize(w, h)` | 设置窗口客户区尺寸 |
+| `SetMaximized(maximized)` | 最大化或还原可缩放窗口 |
 | `GetDeltaTime()` | 帧间隔（秒） |
 | `GetFPS()` | 当前帧率 |
 | `GetTime()` | 运行总时间（秒） |
 | `SetTitle(title)` | 修改窗口标题 |
 | `ShowFps(show)` | 是否在标题栏显示实时 FPS |
+| `ShowMouse(show)` | 显示或隐藏窗口内鼠标光标 |
+| `ShowMessage(text, title, buttons)` | 弹出消息框（`MESSAGEBOX_OK` 或 `MESSAGEBOX_YESNO`） |
 
 ### 绘图
 
@@ -398,11 +436,16 @@ g++ -o 03_shapes.exe examples/03_shapes.cpp -mwindows
 | `Clear(color)` | 清屏 |
 | `SetPixel(x, y, color)` | 画点 |
 | `GetPixel(x, y)` | 读点 |
+| `SetClip(x, y, w, h)` | 设置裁剪矩形 |
+| `ClearClip()` | 清除裁剪，恢复整屏 |
+| `Screenshot(filename)` | 将当前画面保存为 24-bit BMP 文件 |
 | `DrawLine(x1, y1, x2, y2, color)` | 画线 |
 | `DrawRect(x, y, w, h, color)` | 矩形边框 |
 | `FillRect(x, y, w, h, color)` | 填充矩形 |
 | `DrawCircle(cx, cy, r, color)` | 圆形边框 |
 | `FillCircle(cx, cy, r, color)` | 填充圆 |
+| `DrawEllipse(cx, cy, rx, ry, color)` | 椭圆边框 |
+| `FillEllipse(cx, cy, rx, ry, color)` | 填充椭圆 |
 | `DrawTriangle(...)` | 三角形边框 |
 | `FillTriangle(...)` | 填充三角形 |
 
@@ -481,6 +524,38 @@ g++ -o 03_shapes.exe examples/03_shapes.cpp -mwindows
 | `DrawGrid(x, y, rows, cols, size, color)` | 画网格 |
 | `FillCell(gx, gy, row, col, size, color)` | 填充网格单元 |
 
+### 场景管理
+
+| 函数 | 说明 |
+|-|-|
+| `SetScene(scene)` | 切换场景（下一帧生效） |
+| `GetScene()` | 获取当前场景 |
+| `IsSceneChanged()` | 本帧是否刚进入新场景 |
+| `GetPreviousScene()` | 获取切换前的场景 |
+
+### UI 控件
+
+| 函数 | 说明 |
+|-|-|
+| `Button(x, y, w, h, text, color)` | 即时模式按钮，点击返回 `true` |
+| `Checkbox(x, y, text, &checked)` | 复选框，触发时翻转 `checked` |
+| `RadioBox(x, y, text, &value, index)` | 单选框，同组共享 `value` 指针实现互斥 |
+| `ToggleButton(x, y, w, h, text, &toggled, color)` | 开关按钮，`toggled` 为 `true` 时持续凹陷 |
+
+### 存档读写
+
+| 函数 | 说明 |
+|-|-|
+| `SaveInt(filename, key, value)` | 保存整数（静态函数） |
+| `SaveFloat(filename, key, value)` | 保存浮点数 |
+| `SaveString(filename, key, value)` | 保存字符串 |
+| `LoadInt(filename, key, defaultValue)` | 读取整数，不存在时返回默认值 |
+| `LoadFloat(filename, key, defaultValue)` | 读取浮点数 |
+| `LoadString(filename, key, defaultValue)` | 读取字符串 |
+| `HasSaveKey(filename, key)` | 判断 key 是否存在 |
+| `DeleteSaveKey(filename, key)` | 删除指定 key |
+| `DeleteSave(filename)` | 删除整个存档文件 |
+
 ### Tilemap
 
 | 函数 | 说明 |
@@ -534,8 +609,8 @@ COLOR_BROWN    COLOR_GOLD      COLOR_TRANSPARENT
 
 ## 技术细节
 
-- **双缓冲**：所有绘制写入内存帧缓冲（`uint32_t*` ARGB），`Update()` 时通过 DIB Section + `BitBlt` 刷新到窗口，无闪烁
-- **图形自实现**：不调用 `LineTo`、`Ellipse` 等 GDI 图元函数，线段、圆和三角形算法都由库内实现
+- **双缓冲**：所有绘制写入内存帧缓冲（`uint32_t*` ARGB），`Update()` 时通过 DIB Section + `BitBlt`（或 `StretchBlt` 缩放）刷新到窗口，无闪烁
+- **图形自实现**：不调用 `LineTo`、`Ellipse` 等 GDI 图元函数，线段、圆、椭圆和三角形算法都由库内实现
 - **字体后端**：可缩放字体文字当前通过 GDI 的 `CreateFontW` / `TextOutW` / `GetTextExtentPoint32W` 实现
 - **精确窗口尺寸**：`Open()` 保证客户区严格等于请求的宽高（含高 DPI 二次校正）
 - **stb 风格单头文件**：默认 include 即启用实现；多文件项目可用 `GAMELIB_NO_IMPLEMENTATION` 控制

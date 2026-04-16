@@ -78,10 +78,12 @@ It's specifically designed for **Dev C++** (the IDE used in many school programm
 
 ### Ready-to-Use Drawing
 
-- Draw pixels, lines, rectangles, circles, triangles (stroke and fill)
+- Draw pixels, lines, rectangles, circles, ellipses, triangles (stroke and fill)
+- Clip rectangles (`SetClip`/`ClearClip`), all drawing automatically constrained by the clip region
 - Built-in 8x8 pixel bitmap font supporting all printable ASCII characters
 - `DrawTextFont` supports scalable fonts and UTF-8 text output
 - `DrawPrintf` formats output on screen just like `printf`
+- `Screenshot` saves the current frame to a BMP file with one line of code
 - `ShowFps(true)` displays real-time FPS in the title bar
 - All graphics algorithms implemented internally (Bresenham line, midpoint circle, scanline fill)
 
@@ -90,7 +92,7 @@ It's specifically designed for **Dev C++** (the IDE used in many school programm
 - Load PNG, JPG, BMP, GIF and more
 - Support for 8-bit palette, 24-bit, 32-bit images (auto-converted to 32-bit ARGB)
 - 24-bit images automatically get full alpha channel (set to opaque)
-- Flip, Color Key transparency, Alpha blending, region clipping, scaling, frame-based drawing
+- Flip, Color Key transparency, Alpha blending, region clipping, scaling, rotation, frame-based drawing
 - Managed by integer IDs -- no need to understand pointers or object lifetimes
 
 ### Keyboard and Mouse
@@ -128,7 +130,33 @@ It's specifically designed for **Dev C++** (the IDE used in many school programm
 - Only draws tiles visible on screen -- no lag even with large maps
 - Easily implement side-scrolling and parallax with camera offset
 
+### Window Scaling
 
+- Set `resizable=true` in `Open()` to create a user-resizable window
+- Framebuffer logical size is fixed at `Open` time; the window auto-stretches to fill when resized
+- `WinResize(w, h)` to programmatically resize the window, `SetMaximized(true)` for one-click maximize
+- Mouse coordinates automatically mapped back to framebuffer logical coordinates
+
+### Scene Management
+
+- `SetScene` / `GetScene` / `IsSceneChanged` -- use integers to identify scenes, takes effect next frame
+- `IsSceneChanged()` returns `true` on the first frame of a new scene, handy for initialization
+- Combine with `enum` and `switch` for menu -> gameplay -> game-over scene transitions
+
+### Save / Load Data
+
+- `SaveInt` / `SaveFloat` / `SaveString` -- save data to file in one line
+- `LoadInt` / `LoadFloat` / `LoadString` -- load data in one line, with default values if missing
+- Static functions, callable without a GameLib instance
+- Plain-text `key=value` format, human-readable
+
+### UI Controls
+
+- `Button` -- immediate-mode button with automatic hover / pressed visual states
+- `Checkbox` -- checkbox that auto-toggles on click
+- `RadioBox` -- radio button, shared variable for mutual exclusion within a group
+- `ToggleButton` -- toggle button that stays pressed when toggled on
+- Uses built-in 8x8 bitmap font, zero dependencies, zero configuration
 
 
 ## Quick Start
@@ -307,7 +335,7 @@ More examples in the `examples/` directory.
 
 ## Example Programs
 
-The `examples/` directory contains 20 progressive examples that demonstrate GameLib's features step by step, covering windows, graphics, input, sprites, sound, tilemap, clip rectangles, font text, scaled drawing, and rotated drawing.
+The `examples/` directory contains 21 progressive examples that demonstrate GameLib's features step by step, covering windows, graphics, input, sprites, sound, tilemap, clip rectangles, font text, scaled drawing, rotated drawing, and UI controls.
 
 Compile any example:
 
@@ -371,6 +399,12 @@ That's it.
 | `17_sprite_scaling.cpp` | Sprite scaled drawing | LoadSprite, DrawSpriteScaled / DrawSpriteFrameScaled, scroll wheel zoom |
 | `20_sprite_rotation.cpp` | Sprite rotation drawing | CreateSprite, DrawSpriteRotated / DrawSpriteFrameRotated, center-based rotation |
 
+### Scene and UI
+
+| Example | Description | What You'll Learn |
+|-|-|-|
+| `21_ui_controls.cpp` | UI controls demo | Button, Checkbox, RadioBox, ToggleButton immediate-mode UI |
+
 
 
 
@@ -380,16 +414,20 @@ That's it.
 
 | Function | Description |
 |-|-|
-| `Open(w, h, title, center)` | Create window, center=true to center on screen |
+| `Open(w, h, title, center, resizable)` | Create window; `w/h` sets framebuffer logical size, `center=true` to center, `resizable=true` for user-resizable window |
 | `IsClosed()` | Whether the window is closed |
 | `Update()` | Refresh display and process input |
 | `WaitFrame(fps)` | Frame rate control |
-| `GetWidth()` / `GetHeight()` | Window dimensions |
+| `GetWidth()` / `GetHeight()` | Framebuffer logical dimensions |
+| `WinResize(w, h)` | Set window client area size |
+| `SetMaximized(maximized)` | Maximize or restore a resizable window |
 | `GetDeltaTime()` | Frame interval (seconds) |
 | `GetFPS()` | Current frame rate |
 | `GetTime()` | Total elapsed time (seconds) |
 | `SetTitle(title)` | Change window title |
 | `ShowFps(show)` | Show real-time FPS in title bar |
+| `ShowMouse(show)` | Show or hide mouse cursor in window |
+| `ShowMessage(text, title, buttons)` | Show message box (`MESSAGEBOX_OK` or `MESSAGEBOX_YESNO`) |
 
 ### Drawing
 
@@ -398,11 +436,16 @@ That's it.
 | `Clear(color)` | Clear screen |
 | `SetPixel(x, y, color)` | Draw pixel |
 | `GetPixel(x, y)` | Read pixel |
+| `SetClip(x, y, w, h)` | Set clip rectangle |
+| `ClearClip()` | Clear clip, restore full screen |
+| `Screenshot(filename)` | Save current frame as 24-bit BMP file |
 | `DrawLine(x1, y1, x2, y2, color)` | Draw line |
 | `DrawRect(x, y, w, h, color)` | Rectangle outline |
 | `FillRect(x, y, w, h, color)` | Filled rectangle |
 | `DrawCircle(cx, cy, r, color)` | Circle outline |
 | `FillCircle(cx, cy, r, color)` | Filled circle |
+| `DrawEllipse(cx, cy, rx, ry, color)` | Ellipse outline |
+| `FillEllipse(cx, cy, rx, ry, color)` | Filled ellipse |
 | `DrawTriangle(...)` | Triangle outline |
 | `FillTriangle(...)` | Filled triangle |
 
@@ -481,6 +524,38 @@ The default `DrawSprite(id, x, y)` uses the opaque fast path. If your assets rel
 | `DrawGrid(x, y, rows, cols, size, color)` | Draw grid |
 | `FillCell(gx, gy, row, col, size, color)` | Fill grid cell |
 
+### Scene Management
+
+| Function | Description |
+|-|-|
+| `SetScene(scene)` | Switch scene (takes effect next frame) |
+| `GetScene()` | Get current scene |
+| `IsSceneChanged()` | Whether this frame just entered a new scene |
+| `GetPreviousScene()` | Get previous scene before the switch |
+
+### UI Controls
+
+| Function | Description |
+|-|-|
+| `Button(x, y, w, h, text, color)` | Immediate-mode button, returns `true` on click |
+| `Checkbox(x, y, text, &checked)` | Checkbox, toggles `checked` on click |
+| `RadioBox(x, y, text, &value, index)` | Radio button, shared `value` pointer for mutual exclusion |
+| `ToggleButton(x, y, w, h, text, &toggled, color)` | Toggle button, stays pressed when `toggled` is `true` |
+
+### Save / Load Data
+
+| Function | Description |
+|-|-|
+| `SaveInt(filename, key, value)` | Save integer (static function) |
+| `SaveFloat(filename, key, value)` | Save float |
+| `SaveString(filename, key, value)` | Save string |
+| `LoadInt(filename, key, defaultValue)` | Load integer, returns default if missing |
+| `LoadFloat(filename, key, defaultValue)` | Load float |
+| `LoadString(filename, key, defaultValue)` | Load string |
+| `HasSaveKey(filename, key)` | Check if key exists |
+| `DeleteSaveKey(filename, key)` | Delete a specific key |
+| `DeleteSave(filename)` | Delete entire save file |
+
 ### Tilemap
 
 | Function | Description |
@@ -534,8 +609,8 @@ Custom colors: `COLOR_RGB(r, g, b)` or `COLOR_ARGB(a, r, g, b)`
 
 ## Technical Details
 
-- **Double Buffering**: All drawing writes to an in-memory framebuffer (`uint32_t*` ARGB); `Update()` flushes to the window via DIB Section + `BitBlt`, flicker-free
-- **Self-Implemented Graphics**: Does not call GDI primitives like `LineTo` or `Ellipse`; line, circle, and triangle algorithms are all implemented within the library
+- **Double Buffering**: All drawing writes to an in-memory framebuffer (`uint32_t*` ARGB); `Update()` flushes to the window via DIB Section + `BitBlt` (or `StretchBlt` when scaled), flicker-free
+- **Self-Implemented Graphics**: Does not call GDI primitives like `LineTo` or `Ellipse`; line, circle, ellipse, and triangle algorithms are all implemented within the library
 - **Font Backend**: Scalable font text currently implemented via GDI's `CreateFontW` / `TextOutW` / `GetTextExtentPoint32W`
 - **Precise Window Size**: `Open()` guarantees the client area exactly matches the requested dimensions (with high-DPI secondary correction)
 - **stb-Style Single Header**: Include enables implementation by default; multi-file projects can use `GAMELIB_NO_IMPLEMENTATION` to control this
