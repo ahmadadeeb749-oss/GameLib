@@ -33,7 +33,7 @@
 
 ### 1.3 双缓冲架构
 
-所有绘制操作都写入内存帧缓冲 (`uint32_t*` ARGB 数组)。`Open()` 时确定 framebuffer 固定尺寸；之后调用 `Update()` 时，如果当前窗口客户区尺寸与 framebuffer 一致就直接 `BitBlt`，否则使用 `StretchBlt` 缩放填满整个客户区。
+所有绘制操作都写入内存帧缓冲 (`uint32_t*` ARGB 数组)。`Open()` 时确定 framebuffer 固定尺寸；之后调用 `Update()` 时，会在库内部先把 framebuffer 以最近邻方式缩放到一个 `present buffer`，再用 `SetDIBitsToDevice` 1:1 提交到当前窗口客户区。
 
 ### 1.4 图形自实现
 
@@ -44,7 +44,7 @@
 - 内嵌 8x8 ASCII 位图字体
 
 GDI 只用于两类后端能力：
-- `BitBlt` 等函数负责把 DIB Section 帧缓冲提交到窗口
+- `BitBlt` / `SetDIBitsToDevice` 等函数负责把 DIB Section 帧缓冲和缩放后的 `present buffer` 提交到窗口
 - `TextOutW`、`CreateFontW`、`GetTextExtentPoint32W` 等函数负责当前 Windows 后端的可缩放字体绘制与测量
 
 ### 1.5 精灵系统
@@ -243,6 +243,9 @@ bool _resizable;        // Open() 是否允许用户拖拽缩放 / 最大化
 
 // 帧缓冲
 uint32_t *_framebuffer; // width * height 的 ARGB 数组，由 DIB Section 管理
+uint32_t *_presentBuffer; // 当前窗口尺寸的缩放后临时显示缓冲
+int *_presentMapX;        // 目标 x -> 源 x 的预计算映射
+int *_presentMapY;        // 目标 y -> 源 y 的预计算映射
 
 // DIB Section（用于 GDI 文字渲染 + BitBlt 刷新）
 HDC _memDC;             // 常备内存 DC
@@ -339,7 +342,7 @@ static bool _srandDone; // srand 是否已初始化
 #### `void Update()`
 1. 保存上一帧按键状态到 `_keys_prev`，鼠标状态到 `_mouseButtons_prev`，并将 `_mouseWheelDelta` 清零
 2. 派发 Windows 消息（PeekMessage 循环），同步当前客户区尺寸和输入状态
-3. 如果窗口客户区尺寸与 framebuffer 一致，就通过 `BitBlt` 将 DIB Section 的 `_memDC` 直接刷新到窗口；否则用 `StretchBlt` 缩放填满整个客户区
+3. 若客户区尺寸与 framebuffer 相同，则直接 `BitBlt`；否则按预计算的 x/y 映射做最近邻软件缩放，把结果写入 `present buffer` 后再 `SetDIBitsToDevice` 刷新到窗口客户区
 4. 使用 `QueryPerformanceCounter()` 更新 deltaTime 和 FPS（内部使用 `double` 计算，FPS 每秒统计一次）
 5. FPS 更新时调用 `_UpdateTitleFps()` 更新标题栏显示
 
@@ -891,7 +894,7 @@ level=3
 | `WM_RBUTTONDOWN/UP` | 更新缩放后的鼠标位置，并更新 `_mouseButtons[1]` |
 | `WM_MBUTTONDOWN/UP` | 更新缩放后的鼠标位置，并更新 `_mouseButtons[2]` |
 | `MM_MCINOTIFY` | 当当前音乐是 MIDI 且 `_musicLoop=true` 时，执行 `seek ... to start` 后重新播放；否则清理该实例的 MCI 资源状态 |
-| `WM_PAINT` | 客户区与 framebuffer 同尺寸时用 `BitBlt`，否则用 `StretchBlt` 重绘帧缓冲 |
+| `WM_PAINT` | 客户区与 framebuffer 同尺寸时直接 `BitBlt`；否则按预计算映射生成 `present buffer` 后用 `SetDIBitsToDevice` 重绘到客户区 |
 
 ---
 
@@ -1046,12 +1049,12 @@ int main() {
 | `DrawTilemap` 预计算可见瓦片范围 | 大地图（如 200×50）时只遍历当前裁剪矩形内的瓦片，保证绘制性能 |
 | `DrawTilemap` 复用非缩放精灵快路径 | 无 `SPRITE_ALPHA` / `SPRITE_COLORKEY` 时逐行 memcpy；其他情况转到 `_DrawSpriteAreaFast`，避免保留重复实现 |
 | Tilemap 不管理 tileset 精灵的生命周期 | `FreeTilemap` 只释放 tiles 数组，tileset 精灵由用户通过 `FreeSprite` 控制 |
-| DIB Section + 常备 DC | 创建 `CreateDIBSection` 并选入常备 `_memDC`，帧缓冲内存由 DIB Section 管理，支持当前 Windows 后端的字体文字输出 |
+| DIB Section + present buffer | 创建 `CreateDIBSection` 并选入常备 `_memDC` 作为帧缓冲源；缩放显示时使用预计算 x/y 映射生成 `present buffer`，并复用重复目标行降低 CPU 开销 |
 | `DrawTextFont` 动态创建字体 | 每次调用创建/销毁字体，适合少量文字；若需大量文字可后续添加字体缓存 |
 | 图元颜色默认接受 ARGB | `SetPixel` 与线段/矩形/圆/椭圆/三角形在 Alpha<255 时统一做 source-over 混合，语义与精灵 Alpha 一致 |
 | `ShowMouse` 不使用全局 `ShowCursor` 计数 | 避免不同窗口/库同时操作时把系统全局光标引用计数弄乱 |
 | `ShowMessage` 只暴露两种按钮布局 | 对初学者 API 保持足够简单，同时覆盖确认/询问两类常见对话框 |
-| `BitBlt` 替代 `SetDIBitsToDevice` | DIB Section 场景下 `BitBlt` 更高效，且代码更简洁 |
+| 显示提交区分直拷贝与软件缩放 | 同尺寸时继续走 `BitBlt` 快路径；缩放显示时改为预计算映射 + `present buffer`，避免直接依赖 GDI 的缩放采样 |
 | GDI 文字函数动态加载 | 所有 GDI 函数通过 `LoadLibrary` + `GetProcAddress` 加载，保持只需 `-mwindows` 编译 |
 | `DrawTextFont` 结果按调用方 alpha 再混回帧缓冲 | GDI 栅格本身不遵守 GameLib 的 ARGB 语义，需要先修正字形 alpha，再按调用方 alpha 做 post-blend |
 | 构造函数加载核心 API | `gdi32.dll`/`winmm.dll` 是 Windows 系统 DLL，实际不会加载失败；构造时加载消除了"API 未加载"状态，后续方法无需 NULL 检查 |

@@ -10,7 +10,7 @@
 int main()
 {
     GameLib game;
-    game.Open(640, 480, "05 - Paint", true);
+    game.Open(640, 480, "05 - Paint", true, true);
 
     uint32_t palette[] = {
         COLOR_WHITE, COLOR_RED, COLOR_GREEN, COLOR_BLUE,

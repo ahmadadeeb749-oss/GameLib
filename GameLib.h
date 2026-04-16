@@ -471,7 +471,7 @@ private:
     void _InitDIBInfo(void *ptr, int width, int height);
     void _DestroyGraphicsResources();
     void _DestroyTimingResources();
-    void _PresentFrame(HDC hdc) const;
+    void _PresentFrame(HDC hdc);
     void _UpdateClientSize();
     void _SetMouseFromWindowCoords(int x, int y);
     void _UpdateTitleFps();
@@ -513,6 +513,11 @@ private:
 
     // frame buffer
     uint32_t *_framebuffer;
+    uint32_t *_presentBuffer;
+    int *_presentMapX;
+    int *_presentMapY;
+    int _presentWidth;
+    int _presentHeight;
 
     // DIB Section (for scalable font text rendering on current backend)
     HDC _memDC;
@@ -521,6 +526,7 @@ private:
 
     // DIB info (for SetDIBitsToDevice, kept for compatibility)
     unsigned char _bmi_data[sizeof(BITMAPINFO) + 16 * sizeof(RGBQUAD)];
+    unsigned char _present_bmi_data[sizeof(BITMAPINFO) + 16 * sizeof(RGBQUAD)];
 
     // input state
     int _keys[512];
@@ -1064,6 +1070,11 @@ GameLib::GameLib()
     _clipH = 0;
     _resizable = false;
     _framebuffer = NULL;
+    _presentBuffer = NULL;
+    _presentMapX = NULL;
+    _presentMapY = NULL;
+    _presentWidth = 0;
+    _presentHeight = 0;
     _memDC = NULL;
     _dibSection = NULL;
     _oldBmp = NULL;
@@ -1086,6 +1097,7 @@ GameLib::GameLib()
     _timerId = 0;
     _timerPeriodActive = false;
     memset(_bmi_data, 0, sizeof(_bmi_data));
+    memset(_present_bmi_data, 0, sizeof(_present_bmi_data));
     _musicPlaying = false;
     _musicLoop = false;
     _musicIsMidi = false;
@@ -1122,6 +1134,18 @@ GameLib::GameLib()
 
 void GameLib::_DestroyGraphicsResources()
 {
+    if (_presentBuffer) {
+        free(_presentBuffer);
+        _presentBuffer = NULL;
+    }
+    if (_presentMapX) {
+        free(_presentMapX);
+        _presentMapX = NULL;
+    }
+    if (_presentMapY) {
+        free(_presentMapY);
+        _presentMapY = NULL;
+    }
     if (_memDC) {
         if (_oldBmp && _gl_SelectObject) {
             _gl_SelectObject(_memDC, _oldBmp);
@@ -1137,6 +1161,8 @@ void GameLib::_DestroyGraphicsResources()
         _memDC = NULL;
     }
     _framebuffer = NULL;
+    _presentWidth = 0;
+    _presentHeight = 0;
     _windowWidth = 0;
     _windowHeight = 0;
     _clipX = 0;
@@ -1146,7 +1172,7 @@ void GameLib::_DestroyGraphicsResources()
 }
 
 
-void GameLib::_PresentFrame(HDC hdc) const
+void GameLib::_PresentFrame(HDC hdc)
 {
     if (!hdc || !_memDC || _width <= 0 || _height <= 0 || _windowWidth <= 0 || _windowHeight <= 0) {
         return;
@@ -1154,12 +1180,70 @@ void GameLib::_PresentFrame(HDC hdc) const
 
     if (_windowWidth == _width && _windowHeight == _height) {
         _gl_BitBlt(hdc, 0, 0, _width, _height, _memDC, 0, 0, 0x00CC0020 /* SRCCOPY */);
+        if (_gl_GdiFlush) _gl_GdiFlush();
         return;
     }
 
-    _gl_SetStretchBltMode(hdc, COLORONCOLOR);
-    _gl_StretchBlt(hdc, 0, 0, _windowWidth, _windowHeight,
-                   _memDC, 0, 0, _width, _height, 0x00CC0020 /* SRCCOPY */);
+    bool ready = (_presentWidth == _windowWidth) && (_presentHeight == _windowHeight) &&
+                 (_presentBuffer != NULL) && (_presentMapX != NULL) && (_presentMapY != NULL);
+    if (!ready) {
+        uint32_t *newBuffer = (uint32_t*)realloc(_presentBuffer,
+            (size_t)_windowWidth * (size_t)_windowHeight * sizeof(uint32_t));
+        int *newMapX = (int*)realloc(_presentMapX, (size_t)_windowWidth * sizeof(int));
+        int *newMapY = (int*)realloc(_presentMapY, (size_t)_windowHeight * sizeof(int));
+
+        if (!newBuffer || !newMapX || !newMapY) {
+            if (newBuffer) _presentBuffer = newBuffer;
+            if (newMapX) _presentMapX = newMapX;
+            if (newMapY) _presentMapY = newMapY;
+
+            _gl_SetStretchBltMode(hdc, COLORONCOLOR);
+            _gl_StretchBlt(hdc, 0, 0, _windowWidth, _windowHeight,
+                           _memDC, 0, 0, _width, _height, 0x00CC0020 /* SRCCOPY */);
+            if (_gl_GdiFlush) _gl_GdiFlush();
+            return;
+        }
+
+        _presentBuffer = newBuffer;
+        _presentMapX = newMapX;
+        _presentMapY = newMapY;
+        _presentWidth = _windowWidth;
+        _presentHeight = _windowHeight;
+
+        for (int x = 0; x < _windowWidth; x++) {
+            _presentMapX[x] = (int)(((long long)x * (long long)_width) / (long long)_windowWidth);
+        }
+        for (int y = 0; y < _windowHeight; y++) {
+            _presentMapY[y] = (int)(((long long)y * (long long)_height) / (long long)_windowHeight);
+        }
+        _InitDIBInfo(_present_bmi_data, _windowWidth, _windowHeight);
+    }
+
+    const int dstWidth = _windowWidth;
+    const size_t rowBytes = (size_t)dstWidth * sizeof(uint32_t);
+    int previousSrcY = -1;
+    uint32_t *previousDstRow = NULL;
+
+    for (int y = 0; y < _windowHeight; y++) {
+        int srcY = _presentMapY[y];
+        uint32_t *dstRow = _presentBuffer + (size_t)y * (size_t)dstWidth;
+        if (srcY == previousSrcY && previousDstRow) {
+            memcpy(dstRow, previousDstRow, rowBytes);
+            continue;
+        }
+
+        const uint32_t *srcRow = _framebuffer + (size_t)srcY * (size_t)_width;
+        for (int x = 0; x < dstWidth; x++) {
+            dstRow[x] = srcRow[_presentMapX[x]];
+        }
+        previousSrcY = srcY;
+        previousDstRow = dstRow;
+    }
+
+    _gl_SetDIBitsToDevice(hdc, 0, 0, (DWORD)_windowWidth, (DWORD)_windowHeight,
+                          0, 0, 0, (UINT)_windowHeight,
+                          _presentBuffer, (BITMAPINFO*)_present_bmi_data, DIB_RGB_COLORS);
+    if (_gl_GdiFlush) _gl_GdiFlush();
 }
 
 
