@@ -1045,13 +1045,14 @@ static bool _srandDone;
 
 ### 14.6 建议回归顺序
 
+- 是否能编译成功：优先回归 `examples/demo_sdl.cpp`。
 - 图形与精灵相关改动：优先回归 `examples/01_hello.cpp`、`examples/03_shapes.cpp`、`examples/05_sprites.cpp`、`examples/10_tilemap.cpp`、`examples/12_sprite_transform.cpp`、`examples/13_clip_rect.cpp`。
 - 字体相关改动：优先回归 `examples/11_font_text.cpp`、`examples/13_clip_rect.cpp`。
 - 音频相关改动：优先回归 `examples/06_sound.cpp`。
 - 游戏循环、碰撞和输入相关改动：优先回归 `examples/07_shooting.cpp`、`examples/08_breakout.cpp`、`examples/09_snake.cpp`、`examples/14_space_shooter.cpp`。
 - UI 控件相关改动：优先回归 `examples/15_ui_controls.cpp`。
 
-回归时需要加上编译参数 `-DUSE_SDL=1` ，来显示启用 SDL 分支；
+回归时需要加上编译参数 `-DUSE_SDL=1` ，来显示启用 SDL 分支，避免 Windows 下面跑到 #include "../GameLib.h" 那里去；
 
 ---
 
