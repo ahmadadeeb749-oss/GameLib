@@ -38,8 +38,8 @@ int main()
 #if defined(_WIN32) && !defined(USE_SDL)
     const char *musicFile = ChooseExistingPath("../assets/music/battle1.mid",
                                                "assets/music/battle1.mid");
-    const char *musicLabel = "Background Music (MCI MIDI):";
-    const char *musicHint  = "(uses assets/music/battle1.mid via MCI sequencer)";
+    const char *musicLabel = "Background Music (SDL2-mixer):";
+    const char *musicHint  = "(uses assets/music/battle1.mid via SDL2-mixer)";
     bool hasMusicSupport = true;
 #else
     const char *musicFile = ChooseExistingPath("../assets/music/battle1.mid",
