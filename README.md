@@ -54,7 +54,7 @@ g++ main.cpp -o game.exe -mwindows
 
 Dev C++ 用户：新建项目 > 添加 `main.cpp` > 编译运行，完事。
 
-不需要 `-lgdi32 -lwinmm` 等任何链接参数，所有依赖由库内动态加载。
+不需要 `-lgdi32 -lwinmm` 等任何链接参数，所有依赖由库内动态加载，连参数 `-mwindows` 都是可选的（不加的话会有控制台窗口）。
 
 
 ## 特性亮点
@@ -132,6 +132,13 @@ Dev C++ 用户：新建项目 > 添加 `main.cpp` > 编译运行，完事。
 g++ -o 03_shapes.exe examples/03_shapes.cpp -mwindows
 ```
 
+截图：03_shapes.cpp
+
+![](https://skywind3000.github.io/images/p/gamelib/shapes.png)
+
+截图：08_breakout.cpp
+
+![](https://skywind3000.github.io/images/p/gamelib/breakout.png)
 
 ## 环境要求
 
