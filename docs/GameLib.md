@@ -119,7 +119,7 @@ GameLib.h
 ### 3.2 链接库
 
 - `gdi32` — BitBlt, StretchBlt, SetStretchBltMode, CreateDIBSection, CreateCompatibleDC, CreateFontW, TextOutW, SelectObject, DeleteObject, DeleteDC, GetStockObject, SetDIBitsToDevice, SetTextColor, SetBkMode, GetTextExtentPoint32W, GdiFlush（通过 LoadLibrary 动态加载）
-- `winmm` — timeBeginPeriod, timeEndPeriod, timeSetEvent, timeKillEvent, PlaySoundW, mciSendStringW（通过 LoadLibrary 动态加载）
+- `winmm` — timeBeginPeriod, timeEndPeriod, timeSetEvent, timeKillEvent, waveOutOpen, waveOutClose, waveOutPrepareHeader, waveOutUnprepareHeader, waveOutWrite, waveOutReset, mciSendStringW（通过 LoadLibrary 动态加载）
 - `gdiplus` — GdiplusStartup, GdipCreateBitmapFromStream, GdipBitmapLockBits 等（通过 LoadLibrary 动态加载，首次调用 `LoadSprite` 时懒加载）
 - `ole32` — CreateStreamOnHGlobal（通过 LoadLibrary 动态加载，随 gdiplus 一起加载）
 - `kernel32` — QueryPerformanceCounter, QueryPerformanceFrequency, Sleep, CreateEventA, WaitForSingleObject, CloseHandle（系统默认提供）
@@ -287,6 +287,39 @@ bool _musicPlaying;     // 是否正在播放 MCI 音乐
 bool _musicLoop;        // 当前音乐是否应循环
 bool _musicIsMidi;      // 当前音乐是否走 MIDI notify 重播路径
 std::wstring _musicAlias; // 当前实例使用的 MCI alias
+
+// 音频混音器状态
+struct _WavData {
+    WAVEFORMATEX format;
+    int16_t *samples;
+    uint32_t samples_per_channel;
+    uint32_t sample_rate;
+    int channels;
+    ~_WavData() { if (samples) free(samples); }
+};
+struct _Channel {
+    _WavData *wav;
+    int volume;
+    int repeat;
+    uint32_t position;
+    bool active;
+    bool stopping;
+};
+std::unordered_map<std::string, _WavData*> _wav_cache;
+std::unordered_map<int, _Channel*> _audio_channels;
+int64_t _next_channel_id;
+bool _audio_initialized;
+int _master_volume;
+HWAVEOUT _hWaveOut;
+WAVEHDR *_wave_hdr[2];
+CRITICAL_SECTION _audio_lock;
+volatile bool _audio_closing;
+static const int _MAX_CHANNELS = 32;
+static const int _AUDIO_BUFFER_FRAMES = 2048;
+static const int _AUDIO_OUTPUT_CHANNELS = 2;
+static const int _AUDIO_BUFFER_TOTAL = _AUDIO_BUFFER_FRAMES * _AUDIO_OUTPUT_CHANNELS;
+static const int _AUDIO_BUFFER_BYTES = _AUDIO_BUFFER_TOTAL * sizeof(int32_t);
+int32_t _mix_buffer[_AUDIO_BUFFER_TOTAL];
 
 // 场景状态
 int _scene;              // 当前场景编号
@@ -651,14 +684,39 @@ static bool _srandDone; // srand 是否已初始化
 #### `void PlayBeep(int frequency, int duration)`
 - Windows Beep（阻塞式，简单蜂鸣）
 
-#### `bool PlayWAV(const char *filename, bool loop = false)`
-- 使用 `PlaySoundW` 播放 WAV 文件（异步）
+#### `int PlayWAV(const char *filename, int repeat = 1, int volume = 1000)`
+- 使用 waveOut 软件混音器播放 WAV 音效（异步，多通道）
 - `filename` 按 **UTF-8** 解释，内部转为宽字符路径
-- `loop=true` 时循环播放
-- 成功启动返回 `true`，失败返回 `false`
+- `repeat` 为重复次数，-1 表示无限循环，默认 1（单次播放）
+- `volume` 为通道音量，范围 0~1000，默认 1000（满音量）
+- 每次调用分配独立通道，同一 WAV 文件可重叠播放
+- 成功返回通道 ID（正整数），失败返回 -1（文件错误）或 -2（音频设备初始化失败）
+- 音频设备惰性初始化：首次调用时才创建 waveOut 设备
 
-#### `void StopWAV()`
-- 停止当前 WAV 播放
+#### `int StopWAV(int channel)`
+- 停止指定通道的 WAV 播放
+- `channel` 为 `PlayWAV` 返回的通道 ID
+- 成功返回 1，无效通道返回 0
+
+#### `int IsPlaying(int channel)`
+- 查询指定通道是否仍在播放
+- 正在播放返回 1，已停止或无效通道返回 0
+
+#### `int SetVolume(int channel, int volume)`
+- 设置指定通道音量
+- `volume` 范围 0~1000
+- 成功返回新音量值，无效通道返回 -1
+
+#### `void StopAll()`
+- 停止所有通道的音效播放并清除缓存
+
+#### `int SetMasterVolume(int volume)`
+- 设置主音量
+- `volume` 范围 0~1000，自动钳制到有效范围
+- 返回实际设置的主音量值
+
+#### `int GetMasterVolume() const`
+- 返回当前主音量值（0~1000）
 
 #### `bool PlayMusic(const char *filename, bool loop = true)`
 - 使用 **MCI (Media Control Interface)** 播放背景音乐
@@ -671,7 +729,7 @@ static bool _srandDone; // srand 是否已初始化
 - 调用时会自动停止之前的音乐
 - `filename` 按 **UTF-8** 解释，内部转为宽字符路径
 - **安全性**：`filename` 为 NULL 时直接返回 `false`；拒绝包含引号和换行的文件名（防止 MCI 命令注入）
-- **与 PlayWAV 独立**，可同时播放背景音乐和音效
+- **与音效通道独立**，可同时播放背景音乐和多通道音效
 - 成功启动返回 `true`，失败返回 `false`
 
 #### `void StopMusic()`
@@ -1043,14 +1101,14 @@ int main() {
 2. **PlayBeep 是阻塞的** — 会暂停游戏循环
 3. **单窗口** — 窗口类名固定为 "GameLibWindowClass"，同时只能有一个 GameLib 实例正常工作
 4. **WaitFrame 精度** — 已改为基于绝对帧边界的 QPC 节拍，并在最后一小段时间里做更细的收尾等待；但底层仍受 Windows 调度粒度影响，不是硬实时计时器
-5. **背景音乐单通道** — 每个 `GameLib` 对象同一时刻仍只能播放一首 MCI 背景音乐；Win32 音效继续走 `PlaySoundW` 这一简单高层通道
+5. **背景音乐单通道** — 每个 `GameLib` 对象同一时刻仍只能播放一首 MCI 背景音乐；但音效已支持多通道同时播放
 
 ### 未来改进方向
 
 1. **旋转 + 缩放组合绘制** — 在现有旋转与缩放接口之上补统一仿射接口
 2. **更多图元** — 圆角矩形、贝塞尔曲线等
 3. **简单动画系统** — 在 `DrawSpriteFrame` 之上补更高层的动画播放辅助
-4. **音频增强** — 多通道音效、音量控制
+4. ~~**音频增强**~~ — 多通道音效、音量控制（已在 waveOut 软件混音器中实现）
 5. **示例游戏 Demo** — 编写打砖块、太空射击等示例
 
 1.1 提案中的接口项已经全部并入当前 `GameLib.h` 与本文档，后续演进直接在这里继续维护。
@@ -1091,7 +1149,8 @@ int main() {
 | Alpha 混合用 `SPRITE_ALPHA` 标志显式启用 | 默认不混合（性能优先），需要混合时通过 `DrawSpriteEx` 传入标志，避免不必要的每像素计算 |
 | 精灵绘制拆分为非缩放快路径和缩放路径 | 常见 `DrawSprite` / `DrawSpriteRegion` 走整数步进快路径；真正缩放时才做最近邻采样 |
 | 无 Alpha 且无 ColorKey 的 sprite/tilemap 快路径不检查源像素透明洞 | 默认路径直接覆盖目标像素；无翻转时可进一步退化为逐行 `memcpy`。需要透明语义时显式传 `SPRITE_ALPHA` / `SPRITE_COLORKEY` |
-| mmsystem 类型和常量自行声明 | 不再 `#include <mmsystem.h>`，减少头文件依赖，避免与 `WIN32_LEAN_AND_MEAN` 冲突 |
+| 使用 `#include <mmsystem.h>` | 需要 `HWAVEOUT`/`WAVEHDR`/`WAVEFORMATEX` 等结构体定义；头文件本身不引入链接依赖，动态加载仍通过 `LoadLibrary`/`GetProcAddress` |
+| waveOut 软件混音器替代 PlaySoundW | PlaySoundW 只支持单通道全局播放；waveOut CALLBACK_FUNCTION 双缓冲模式支持 32 通道独立音量混音 |
 | `unsigned int` 替代 `UINT32` | GCC 4.9.2 的 MinGW 头文件可能未定义 `UINT32` |
 | Tilemap tiles 用 `int*`（malloc 分配）管理 | 与精灵像素内存管理风格一致，析构时自动释放 |
 | Tilemap 瓦片 ID 用 -1 表示空 | 0 是有效的 tileset 第一块瓦片，-1 不会与任何瓦片冲突 |
@@ -1128,3 +1187,10 @@ int main() {
 | `LoadString` 返回 `static char[1024]` 指针 | 避免引入 `std::string` 返回值或手动 free，对初学者最简单；代价是下次调用覆盖，但教学场景下够用 |
 | 存档文件读写/删除统一使用 UTF-8 路径 | Win32 版与精灵/音乐路径一致，支持中文文件名；`DeleteSave()` 不再退回窄字符 `remove()` |
 | 存档实现放在文件末尾 `#endif` 前 | 避免在绘制/精灵/Tilemap 等核心渲染代码中间插入大量无关代码，保持中段可读性 |
+| 音频设备惰性初始化 | waveOut 设备在首次 `PlayWAV` 调用时才创建，不使用音频的程序不会创建音频设备 |
+| `_audio_lock` 在构造函数中初始化 | `CRITICAL_SECTION` 必须在使用前初始化；放在构造函数保证所有音频方法可安全进入临界区 |
+| waveOut 使用 CALLBACK_FUNCTION 双缓冲模式 | 回调驱动混音，无需线程池或定时器；双缓冲交替提交保证连续播放不卡顿 |
+| WAV 重采样使用线性插值 + 边界钳制 | `step = src_rate / target_rate`，浮点源索引取整后 clamp 到 `samples_per_channel - 1`，防止越界读 |
+| WAV 文件按路径缓存 | 同一文件只读一次，重复播放从缓存取 `_WavData`，避免磁盘重复 IO |
+| 通道 ID 用自增 `int64_t` 分配 | 简单无冲突，关闭通道后 ID 不回收；`unordered_map<int, _Channel*>` 管理活跃通道 |
+| 混音缓冲使用 `int32_t` 累加 | 防止多通道叠加溢出 16-bit；最终按 `master_volume * channel_volume / 1000000` 钳制后截断为 `int16_t` |
