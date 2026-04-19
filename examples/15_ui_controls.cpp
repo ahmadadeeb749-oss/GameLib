@@ -63,7 +63,7 @@ int main()
         DrawBackdrop(game, showGrid);
 
         game.FillRect(0, 0, 960, 56, COLOR_RGB(10, 14, 24));
-        game.DrawTextScale(20, 14, "UI CONTROLS", COLOR_WHITE, 2);
+        game.DrawTextScale(20, 14, "UI CONTROLS", COLOR_WHITE, 16, 16);
         game.DrawText(20, 40, "Mouse: press inside, release inside to trigger. ESC quits.", COLOR_LIGHT_GRAY);
 
         DrawPanel(game, 20, 76, 184, 420, "Buttons");

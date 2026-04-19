@@ -186,7 +186,7 @@ int main()
         if (gameOver) {
             game.FillRect(170, 180, 300, 100, COLOR_DARK_GRAY);
             game.DrawRect(170, 180, 300, 100, COLOR_WHITE);
-            game.DrawTextScale(210, 200, "GAME OVER", COLOR_RED, 2);
+            game.DrawTextScale(210, 200, "GAME OVER", COLOR_RED, 16, 16);
             game.DrawPrintf(240, 240, COLOR_WHITE, "Final Score: %d", score);
             game.DrawText(220, 260, "Press R to restart", COLOR_YELLOW);
         }

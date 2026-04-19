@@ -156,7 +156,7 @@ int main()
         game.Clear(COLOR_BLACK);
 
         // Title
-        game.DrawTextScale(gridX, 5, "SNAKE", COLOR_GREEN, 2);
+        game.DrawTextScale(gridX, 5, "SNAKE", COLOR_GREEN, 16, 16);
 
         // Grid
         game.DrawGrid(gridX, gridY, GRID_ROWS, GRID_COLS, CELL_SIZE, COLOR_DARK_GRAY);
@@ -190,7 +190,7 @@ int main()
         if (gameOver) {
             game.FillRect(gridX + gridW / 2 - 80, gridY + gridH / 2 - 30, 160, 70, COLOR_DARK_GRAY);
             game.DrawRect(gridX + gridW / 2 - 80, gridY + gridH / 2 - 30, 160, 70, COLOR_WHITE);
-            game.DrawTextScale(gridX + gridW / 2 - 65, gridY + gridH / 2 - 22, "GAME OVER", COLOR_RED, 1);
+            game.DrawTextScale(gridX + gridW / 2 - 65, gridY + gridH / 2 - 22, "GAME OVER", COLOR_RED, 8, 8);
             game.DrawPrintf(gridX + gridW / 2 - 50, gridY + gridH / 2 + 2, COLOR_WHITE, "Score: %d", score);
             game.DrawText(gridX + gridW / 2 - 55, gridY + gridH / 2 + 20, "R to restart", COLOR_YELLOW);
         }

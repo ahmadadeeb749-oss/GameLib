@@ -4,10 +4,10 @@
 
 `GameLib.h` 是一个面向初学者的 **单头文件游戏库**，基于 Win32 GDI，无需 SDL 或其他第三方库。目标用户是小朋友，用于在 Dev C++ (GCC 4.9.2) 环境下开发简单游戏（空战、俄罗斯方块、走迷宫等）。
 
-**当前版本**: `1.9.1`
+**当前版本**: `1.9.2`
 **最后修改**: 2026/04/20
 
-当前 `1.9.1` 的稳定范围包括：窗口与输入、图元与文字、精灵与 Tilemap、声音、场景管理、纯文本存档，以及固定 framebuffer + 可选可缩放窗口。音效子系统从 PlaySoundW 单声道改为多通道软件混音器（最多 32 通道并发，支持音量/主音量控制）；新增 `DrawPrintfScale`、`KEY_ADD`/`KEY_SUBTRACT` 键常量；音频后端改为惰性初始化。Tilemap 不再缓存 `tilesetTileCount`；地图里超出当前 tileset 范围的非负 `tileId` 会在绘制时自动跳过。窗口缩放时继续返回 framebuffer 逻辑坐标的鼠标位置。新增 `GetFramebuffer()` 直接暴露 framebuffer 指针。
+当前 `1.9.2` 的稳定范围包括：窗口与输入、图元与文字、精灵与 Tilemap、声音、场景管理、纯文本存档，以及固定 framebuffer + 可选可缩放窗口。音效子系统从 PlaySoundW 单声道改为多通道软件混音器（最多 32 通道并发，支持音量/主音量控制）；新增 `DrawPrintfScale`、`KEY_ADD`/`KEY_SUBTRACT` 键常量；音频后端改为惰性初始化。Tilemap 不再缓存 `tilesetTileCount`；地图里超出当前 tileset 范围的非负 `tileId` 会在绘制时自动跳过。窗口缩放时继续返回 framebuffer 逻辑坐标的鼠标位置。新增 `GetFramebuffer()` 直接暴露 framebuffer 指针。
 
 ---
 
@@ -512,8 +512,9 @@ static bool _srandDone; // srand 是否已初始化
 #### `void DrawNumber(int x, int y, int number, uint32_t color)`
 - 将整数转为字符串后调用 DrawText（内部使用 `snprintf` 防溢出）
 
-#### `void DrawTextScale(int x, int y, const char *text, uint32_t color, int scale)`
-- 放大版文字绘制，每个字体像素变为 scale × scale 的矩形
+#### `void DrawTextScale(int x, int y, const char *text, uint32_t color, int w, int h)`
+- 缩放版文字绘制，每个字符按指定宽高渲染，内置 8×8 位图字体通过定点采样映射到 w × h 区域
+- w 和 h 可以不同，实现非等比缩放；旧版 `scale` 等价于 `w = 8 × scale, h = 8 × scale`
 - 支持 `\n` 换行
 
 #### `void DrawPrintf(int x, int y, uint32_t color, const char *fmt, ...)`
@@ -521,9 +522,9 @@ static bool _srandDone; // srand 是否已初始化
 - 内部使用 `vsnprintf`（1024 字节缓冲），格式化后调用 `DrawText` 绘制
 - 方便在屏幕上显示变量值、分数、调试信息等
 
-#### `void DrawPrintfScale(int x, int y, uint32_t color, int scale, const char *fmt, ...)`
-- 放大版格式化输出，格式化后调用 `DrawTextScale` 绘制
-- 每个字体像素变为 scale × scale 的矩形，适合放大显示分数、标题等
+#### `void DrawPrintfScale(int x, int y, uint32_t color, int w, int h, const char *fmt, ...)`
+- 缩放版格式化输出，格式化后调用 `DrawTextScale` 绘制
+- 每个字符按 w × h 渲染，适合缩放显示分数、标题等
 
 ### 6.5 字体文字渲染（当前 Windows 后端用 GDI 实现）
 

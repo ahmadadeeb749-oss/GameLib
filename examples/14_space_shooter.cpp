@@ -423,7 +423,7 @@ int main()
         if (gameOver) {
             game.FillRect(W / 2 - 120, H / 2 - 50, 240, 100, COLOR_DARK_GRAY);
             game.DrawRect(W / 2 - 120, H / 2 - 50, 240, 100, COLOR_WHITE);
-            game.DrawTextScale(W / 2 - 65, H / 2 - 40, "GAME OVER", COLOR_RED, 2);
+            game.DrawTextScale(W / 2 - 65, H / 2 - 40, "GAME OVER", COLOR_RED, 16, 16);
             game.DrawPrintf(W / 2 - 55, H / 2 + 0, COLOR_WHITE, "Final Score: %d", score);
             game.DrawPrintf(W / 2 - 45, H / 2 + 15, COLOR_WHITE, "Level: %d", level);
             game.DrawText(W / 2 - 50, H / 2 + 33, "R to restart", COLOR_YELLOW);

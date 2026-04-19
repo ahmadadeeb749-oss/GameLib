@@ -1,7 +1,7 @@
 // 01_hello.cpp - Hello World
 //
 // The simplest GameLib program: create a window and display text.
-// Learn: Open, Clear, DrawText, DrawTextScale, Update, WaitFrame, IsClosed
+// Learn: Open, Clear, DrawText, DrawTextScale(w, h), Update, WaitFrame, IsClosed
 //
 // Win32: g++ -o 01_hello.exe 01_hello.cpp -mwindows
 // SDL:   g++ -DUSE_SDL -std=c++11 -O2 -o 01_hello.exe 01_hello.cpp -lSDL2
@@ -21,7 +21,7 @@ int main()
         game.Clear(COLOR_DARK_BLUE);
 
         // Large title
-        game.DrawTextScale(160, 180, "Hello, GameLib!", COLOR_GOLD, 3);
+        game.DrawTextScale(160, 180, "Hello, GameLib!", COLOR_GOLD, 24, 24);
 
         // Normal text
         game.DrawText(230, 240, "Welcome to GameLib!", COLOR_WHITE);

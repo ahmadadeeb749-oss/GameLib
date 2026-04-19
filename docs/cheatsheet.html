@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>GameLib API Cheat Sheet v1.9.0</title>
+<title>GameLib API Cheat Sheet v1.9.2</title>
 <style>
   @page {
     size: A4 landscape;
@@ -126,7 +126,7 @@
 </head>
 <body>
 
-<h1>GameLib API Cheat Sheet <small>v1.9.0 &mdash; Single-header C++ Game Library for Win32</small></h1>
+<h1>GameLib API Cheat Sheet <small>v1.9.2 &mdash; Single-header C++ Game Library for Win32</small></h1>
 
 <!-- ==================== Quick Start ==================== -->
 <section>
@@ -201,9 +201,9 @@ Returns: <code>MESSAGEBOX_RESULT_OK</code> / <code>_YES</code> / <code>_NO</code
 <ul>
   <li><code>DrawText(x, y, text, color)</code></li>
   <li><code>DrawNumber(x, y, number, color)</code></li>
-  <li><code>DrawTextScale(x, y, text, color, scale)</code></li>
+  <li><code>DrawTextScale(x, y, text, color, w, h)</code></li>
   <li><code>DrawPrintf(x, y, color, fmt, ...)</code></li>
-  <li><code>DrawPrintfScale(x, y, color, scale, fmt, ...)</code></li>
+  <li><code>DrawPrintfScale(x, y, color, w, h, fmt, ...)</code></li>
 </ul>
 <h3>System Font (GDI, CJK support)</h3>
 <ul>

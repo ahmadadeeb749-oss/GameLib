@@ -189,14 +189,14 @@ int main()
         if (gameOver) {
             game.FillRect(200, 200, 240, 80, COLOR_DARK_GRAY);
             game.DrawRect(200, 200, 240, 80, COLOR_WHITE);
-            game.DrawTextScale(230, 210, "GAME OVER", COLOR_RED, 2);
+            game.DrawTextScale(230, 210, "GAME OVER", COLOR_RED, 16, 16);
             game.DrawPrintf(260, 245, COLOR_WHITE, "Score: %d", score);
             game.DrawText(245, 262, "R to restart", COLOR_YELLOW);
         }
         if (gameWin) {
             game.FillRect(200, 200, 240, 80, COLOR_DARK_GRAY);
             game.DrawRect(200, 200, 240, 80, COLOR_WHITE);
-            game.DrawTextScale(240, 210, "YOU WIN!", COLOR_GREEN, 2);
+            game.DrawTextScale(240, 210, "YOU WIN!", COLOR_GREEN, 16, 16);
             game.DrawPrintf(260, 245, COLOR_WHITE, "Score: %d", score);
             game.DrawText(245, 262, "R to restart", COLOR_YELLOW);
         }

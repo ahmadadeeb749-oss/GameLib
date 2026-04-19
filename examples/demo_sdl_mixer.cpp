@@ -51,7 +51,7 @@ int main()
         game.Clear(COLOR_DARK_BLUE);
 
         // --- Title ---
-        game.DrawTextScale(180, 20, "Sound Demo", COLOR_GOLD, 2);
+        game.DrawTextScale(180, 20, "Sound Demo", COLOR_GOLD, 16, 16);
 
         // === Section 1: Beep Piano ===
         game.DrawText(40, 70, "Piano (Beep) - Press 1~8:", COLOR_WHITE);
