@@ -4,10 +4,10 @@
 
 `GameLib.h` 是一个面向初学者的 **单头文件游戏库**，基于 Win32 GDI，无需 SDL 或其他第三方库。目标用户是小朋友，用于在 Dev C++ (GCC 4.9.2) 环境下开发简单游戏（空战、俄罗斯方块、走迷宫等）。
 
-**当前版本**: `1.9.4`
-**最后修改**: 2026/04/20
+**当前版本**: `1.9.5`
+**最后修改**: 2026/04/21
 
-当前 `1.9.4` 的稳定范围包括：窗口与输入、图元与文字、精灵与 Tilemap、声音、场景管理、纯文本存档，以及固定 framebuffer + 可选可缩放窗口。音效子系统从 PlaySoundW 单声道改为多通道软件混音器（最多 32 通道并发，支持音量/主音量控制）；新增 `DrawPrintfScale`、`KEY_ADD`/`KEY_SUBTRACT` 键常量；音频后端改为惰性初始化。Tilemap 不再缓存 `tilesetTileCount`；地图里超出当前 tileset 范围的非负 `tileId` 会在绘制时自动跳过。窗口缩放时继续返回 framebuffer 逻辑坐标的鼠标位置。新增 `GetFramebuffer()` 直接暴露 framebuffer 指针。`DrawTextScale` 内部改为预计算查找表缩放（替代逐像素除法），alpha==255 时直写 framebuffer，最大缩放尺寸 1024。
+当前 `1.9.5` 的稳定范围包括：窗口与输入、图元与文字、精灵与 Tilemap、声音、场景管理、纯文本存档，以及固定 framebuffer + 可选可缩放窗口。音效子系统从 PlaySoundW 单声道改为多通道软件混音器（最多 32 通道并发，支持音量/主音量控制）；新增 `DrawPrintfScale`、`KEY_ADD`/`KEY_SUBTRACT` 键常量；音频后端改为惰性初始化。Tilemap 不再缓存 `tilesetTileCount`；地图里超出当前 tileset 范围的非负 `tileId` 会在绘制时自动跳过。窗口缩放时继续返回 framebuffer 逻辑坐标的鼠标位置。新增 `GetFramebuffer()` 直接暴露 framebuffer 指针。`DrawTextScale` 内部改为预计算查找表缩放（替代逐像素除法），alpha==255 时直写 framebuffer，最大缩放尺寸 1024。`FillRect` 不透明路径改为首行填充 + memcpy 复制后续行；`DrawText` 空行（bits==0）整体跳过；`DrawTextScale` 当 `w==8 && h==8` 时直接走 `DrawText` 快路径。
 
 ---
 
@@ -496,6 +496,7 @@ static bool _srandDone; // srand 是否已初始化
 
 #### `void FillRect(int x, int y, int w, int h, uint32_t color)`
 - 填充矩形（带裁剪，直接写帧缓冲；`_framebuffer` 为 NULL 时直接返回）
+- 不透明路径（alpha==255）改为首行逐像素填充 + `memcpy` 复制后续行；半透明路径仍逐像素混合
 
 #### `void DrawCircle(int cx, int cy, int r, uint32_t color)`
 - **中点圆算法**，按唯一对称点输出轮廓
@@ -530,6 +531,7 @@ static bool _srandDone; // srand 是否已初始化
 - 使用内嵌 8x8 位图字体（ASCII 32~126, 共 95 个字符）
 - 支持 `\n` 换行（行间距 = 8 + 2 = 10 像素）
 - 每个字符宽度 8 像素
+- 空行（bits==0）整体跳过，不逐像素检查
 
 #### `void DrawNumber(int x, int y, int number, uint32_t color)`
 - 将整数转为字符串后调用 DrawText（内部使用 `snprintf` 防溢出）
@@ -538,6 +540,7 @@ static bool _srandDone; // srand 是否已初始化
 - 缩放版文字绘制，每个字符按指定宽高渲染，内置 8×8 位图字体通过定点采样映射到 w × h 区域
 - w 和 h 可以不同，实现非等比缩放；旧版 `scale` 等价于 `w = 8 × scale, h = 8 × scale`
 - w、h 最大值 1024，超出直接返回
+- `w==8 && h==8` 时直接走 `DrawText` 快路径，不经过查找表
 - 内部使用预计算查找表（`_textSrcRowMap`/`_textSrcColMap`）替代逐像素除法；alpha==255 时直写 framebuffer，alpha<255 时走 `_gamelib_blend_pixel`；空行（bits==0）整体跳过
 - 支持 `\n` 换行
 

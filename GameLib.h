@@ -45,7 +45,7 @@
 // Compile command (MinGW / Dev C++):
 //     g++ -o game.exe main.cpp -mwindows
 //
-// Last Modified: 2026/04/16
+// Last Modified: 2026/04/21
 //
 //=====================================================================
 #ifndef GAMELIB_H
@@ -61,7 +61,7 @@
 // Version Info
 #define GAMELIB_VERSION_MAJOR     1
 #define GAMELIB_VERSION_MINOR     9
-#define GAMELIB_VERSION_PATCH     4
+#define GAMELIB_VERSION_PATCH     5
 
 
 //---------------------------------------------------------------------
@@ -2575,13 +2575,18 @@ void GameLib::FillRect(int x, int y, int w, int h, uint32_t color)
     int x1 = x, y1 = y, x2 = x + w, y2 = y + h;
     if (!_ClipRectToCurrentClip(&x1, &y1, &x2, &y2)) return;
 
-    bool opaque = COLOR_GET_A(color) == 255;
-    for (int j = y1; j < y2; j++) {
-        uint32_t *row = _framebuffer + j * _width;
-        for (int i = x1; i < x2; i++) {
-            if (opaque) {
-                row[i] = color;
-            } else {
+    int rw = x2 - x1;
+    size_t rowBytes = (size_t)rw * sizeof(uint32_t);
+    if (COLOR_GET_A(color) == 255) {
+        uint32_t *firstRow = _framebuffer + y1 * _width + x1;
+        for (int i = 0; i < rw; i++) firstRow[i] = color;
+        for (int j = y1 + 1; j < y2; j++) {
+            memcpy(_framebuffer + j * _width + x1, firstRow, rowBytes);
+        }
+    } else {
+        for (int j = y1; j < y2; j++) {
+            uint32_t *row = _framebuffer + j * _width;
+            for (int i = x1; i < x2; i++) {
                 _gamelib_blend_pixel(row + i, color);
             }
         }
@@ -2915,6 +2920,7 @@ void GameLib::DrawText(int x, int y, const char *text, uint32_t color)
         const unsigned char *glyph = _gamelib_font8x8[ch - 32];
         for (int row = 0; row < 8; row++) {
             unsigned char bits = glyph[row];
+            if (bits == 0) continue;
             for (int col = 0; col < 8; col++) {
                 if (bits & (0x80 >> col)) {
                     SetPixel(x + col, y + row, color);
@@ -2935,6 +2941,7 @@ void GameLib::DrawNumber(int x, int y, int number, uint32_t color)
 void GameLib::DrawTextScale(int x, int y, const char *text, uint32_t color, int w, int h)
 {
     if (!text || w <= 0 || h <= 0 || w > 1024 || h > 1024) return;
+    if (w == 8 && h == 8) { DrawText(x, y, text, color); return; }
     if (!_textSrcRowMap) {
         _textSrcRowMap = (int*)malloc(1024 * sizeof(int));
         _textSrcColMap = (int*)malloc(1024 * sizeof(int));
